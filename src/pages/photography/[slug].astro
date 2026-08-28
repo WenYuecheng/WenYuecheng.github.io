@@ -1,0 +1,10 @@
+---
+import PhotographyCase from '../../components/PhotographyCase.astro';
+import { allContent } from '../../data/content';
+
+export function getStaticPaths() {
+  return allContent.en.photography.items.map((photo) => ({ params: { slug: photo.slug }, props: { photo } }));
+}
+const { photo } = Astro.props;
+---
+<PhotographyCase locale="en" content={allContent.en} photo={photo} />

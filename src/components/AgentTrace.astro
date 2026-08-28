@@ -1,0 +1,33 @@
+---
+interface Props { statusLabel: string }
+const { statusLabel } = Astro.props;
+---
+<div class="trace-shell" data-agent-trace data-trace-mode="static" aria-label="Agent runtime trace: reason, act, verify, learn">
+  <canvas class="trace-canvas" aria-hidden="true"></canvas>
+  <svg class="trace-fallback" viewBox="0 0 500 500" role="img" aria-label="Static agent runtime cycle">
+    <defs><radialGradient id="node"><stop stop-color="#ff9a62"/><stop offset="1" stop-color="#ff9a62" stop-opacity="0"/></radialGradient></defs>
+    <circle cx="250" cy="250" r="164" fill="none" stroke="currentColor" stroke-opacity=".15" stroke-dasharray="4 9"/>
+    <path d="M250 86 C365 88 414 144 414 250 S358 414 250 414 S86 357 86 250 S142 86 250 86" fill="none" stroke="#8fe8ff" stroke-width="2" stroke-opacity=".8"/>
+    <g fill="#8fe8ff"><circle cx="250" cy="86" r="6"/><circle cx="414" cy="250" r="6"/><circle cx="250" cy="414" r="6"/><circle cx="86" cy="250" r="6"/></g>
+    <circle cx="250" cy="86" r="30" fill="url(#node)" opacity=".55"/>
+  </svg>
+  <span class="trace-label">reason</span><span class="trace-label">act</span><span class="trace-label">verify</span><span class="trace-label">learn</span>
+  <span class="hero-status"><i></i>{statusLabel}: observable</span>
+</div>
+<script>
+  const shell = document.querySelector<HTMLElement>('[data-agent-trace]');
+  const canvas = shell?.querySelector<HTMLCanvasElement>('canvas');
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const saveData = Boolean((navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData);
+  const coarse = matchMedia('(pointer: coarse)').matches && innerWidth < 820;
+
+  if (shell && canvas && !reduced && !saveData && !coarse && 'WebGLRenderingContext' in window) {
+    const start = async () => {
+      const { initializeAgentTrace } = await import('../scripts/agent-trace-runtime');
+      if (!shell.isConnected) return;
+      initializeAgentTrace(shell, canvas);
+    };
+    const idle = 'requestIdleCallback' in window ? window.requestIdleCallback : (callback: () => void) => window.setTimeout(callback, 120);
+    idle(() => void start());
+  }
+</script>

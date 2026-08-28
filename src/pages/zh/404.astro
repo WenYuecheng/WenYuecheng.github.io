@@ -1,0 +1,5 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { allContent } from '../../data/content';
+---
+<BaseLayout locale="zh" content={allContent.zh} title="404 — 未发现信号"><section class="hero"><div class="shell"><p class="eyebrow">404 · Signal lost</p><h1>轨迹不存在。</h1><p class="hero-copy muted">请求的观测目标不在当前运行时内。</p><div class="hero-actions"><a class="button primary" href="/zh/">返回主页</a></div></div></section></BaseLayout>

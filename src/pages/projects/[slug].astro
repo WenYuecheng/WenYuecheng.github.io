@@ -1,0 +1,10 @@
+---
+import ProjectCase from '../../components/ProjectCase.astro';
+import { allContent } from '../../data/content';
+
+export function getStaticPaths() {
+  return allContent.en.projects.map((project) => ({ params: { slug: project.slug }, props: { project } }));
+}
+const { project } = Astro.props;
+---
+<ProjectCase locale="en" content={allContent.en} project={project} />
