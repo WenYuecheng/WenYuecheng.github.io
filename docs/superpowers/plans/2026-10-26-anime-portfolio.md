@@ -1,6 +1,6 @@
 # Yuecheng anime portfolio implementation
 
-Goal: Replace the old Astro portfolio with a Next.js static export, adapted from XinghuisamaBlogs commit 8633e983371acc3b627b88b911143ff0fd31ea23. User approved implementation and deployment after local visual QA.
+Goal: Replace the old Astro portfolio with a Next.js static export, adapted from XinghuisamaBlogs commit 8633e983371acc3b627b88b911143ff0fd31ea23. User approved implementation. Latest instruction: keep all three publications paused until the user explicitly confirms the local preview. Local QA does not count as publication approval.
 
 Global constraints: retain English / and Chinese /zh/; only Weyra and SolaceAI projects; genuine existing portrait; CUHK MSc Computer Science admission for September 2027; keep current SCU GPA/rank/awards; research interests Agent, RSI, PEFT, distinguish interests from demonstrated outcomes. Remove old project/research/photography routes entirely. Keep guestbook, remove weather and AI chat per latest steering. Background music configured locally, attempt autoplay on first visit if configured, gracefully show user gesture control if blocked; no tracks yet, never show a false playable state. Deploy same export to current Caddy site directory and GitHub Pages. Preserve application domains and containers. All imagery locally hosted, preserve source attribution.
 

@@ -112,4 +112,4 @@ after its daily/ten-minute windows expire. Uvicorn access logging is disabled.
 Review any separately enabled Caddy access-log policy to match this privacy
 choice. Changing the salt resets peer identities, so preserve it across deploys.
 
-No deployment command has been executed as part of implementation.
+Publication must wait for the owner's explicit confirmation of the local preview.

@@ -39,3 +39,5 @@ See `services/guestbook/` and `deploy/guestbook/`. The API lives at `https://wen
 ## Publish
 
 GitHub Actions exports `out/` to Pages on `main`. For the personal server, back up the site and Caddyfile, then copy assets before HTML into the existing `/opt/solaceai/edge/site` directory. Preserve that directory's inode because Caddy bind-mounts it. Remove obsolete HTML and retain prior hashed assets during rollout. Reload Caddy after validating its configuration. Leave the SolaceAI/MindBridge application routes unchanged and verify both application health endpoints after deployment.
+
+For a fully local guestbook preview, start the service in development mode (see its README), then build with `NEXT_PUBLIC_GUESTBOOK_API=http://127.0.0.1:8093 pnpm build`. This export is for local review only. Before publication, rebuild without that override so both public sites use the primary HTTPS API. Local test notes remain in the local database and are not part of the static export.
