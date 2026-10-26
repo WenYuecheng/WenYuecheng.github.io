@@ -4,7 +4,9 @@ Generated with the built-in `image_gen` tool on 2026-10-26. No API/CLI fallback,
 
 ## hero-day.png
 
-File: `public/images/generated/hero-day.png`
+Master: `artwork/originals/hero-day.png`
+
+Published derivative: `public/images/generated/hero-day.webp`
 
 ```text
 Use case: stylized-concept
@@ -18,7 +20,9 @@ Constraints: no characters, faces, lettering, words, symbols, logos, watermark, 
 
 ## weyra-cover.png
 
-File: `public/images/generated/weyra-cover.png`
+Master: `artwork/originals/weyra-cover.png`
+
+Published derivative: `public/images/generated/weyra-cover.webp`
 
 ```text
 Use case: stylized-concept
@@ -32,7 +36,9 @@ Constraints: Absolutely no text, letters, numbers, glyphs, runes, logos, waterma
 
 ## solaceai-cover.png
 
-File: `public/images/generated/solaceai-cover.png`
+Master: `artwork/originals/solaceai-cover.png`
+
+Published derivative: `public/images/generated/solaceai-cover.webp`
 
 ```text
 Use case: stylized-concept
@@ -46,7 +52,9 @@ Constraints: no text, letters, numbers, logos, watermarks, book markings, signag
 
 ## hero-night.png
 
-File: `public/images/generated/hero-night.png`
+Master: `artwork/originals/hero-night.png`
+
+Published derivative: `public/images/generated/hero-night.webp`
 
 ```text
 Use case: stylized-concept
@@ -60,7 +68,9 @@ Constraints: no text, letters, numbers, signs, readable markings, logos, waterma
 
 ## contact-garden.png
 
-File: `public/images/generated/contact-garden.png`
+Master: `artwork/originals/contact-garden.png`
+
+Published derivative: `public/images/generated/contact-garden.webp`
 
 ```text
 Use case: stylized-concept
@@ -74,7 +84,9 @@ Constraints: no text, letters, digits, signs, stamps with markings, symbols, log
 
 ## profile-garden.png
 
-File: `public/images/generated/profile-garden.png`
+Master: `artwork/originals/profile-garden.png`
+
+Published derivative: `public/images/generated/profile-garden.webp`
 
 ```text
 Use case: stylized-concept
