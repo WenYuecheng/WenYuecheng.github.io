@@ -11,7 +11,10 @@ export const site = {
 export const admission = { university: 'The Chinese University of Hong Kong', program: 'MSc in Computer Science', start: '2027-09', status: 'admitted' } as const;
 export type Track = { title: string; artist: string; src: string; cover?: string };
 // Add local MP3 files to public/music/ and list them here. Autoplay is attempted only when a real track exists.
-export const music: { autoPlay: boolean; tracks: Track[] } = { autoPlay: true, tracks: [] };
+export const music: { autoPlay: boolean; volume: number; tracks: Track[] } = {
+ autoPlay: true, volume: 0.25,
+ tracks: [{ title: "Can't Give Up", artist: 'ZXXXQ', src: '/music/cant-give-up.mp3' }],
+};
 export function routeFor(locale: Locale, path = '/') {
   const clean = path.replace(/^\/zh(?=\/|$)/, '') || '/';
   return `${locale === 'zh' ? '/zh' : ''}${clean.startsWith('/') ? clean : `/${clean}`}`;

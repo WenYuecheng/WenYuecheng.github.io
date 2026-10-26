@@ -19,8 +19,9 @@ describe('public portfolio contract', () => {
   expect(routeFor('zh','/projects/weyra/')).toBe('/zh/projects/weyra/');
   expect(routeFor('en','/zh/contact/')).toBe('/contact/');
  });
- it('never invents a playable track', () => {
+ it('uses the selected local background track', () => {
   expect(music.autoPlay).toBe(true);
-  expect(music.tracks).toEqual([]);
+  expect(music.volume).toBe(0.25);
+  expect(music.tracks).toEqual([{title:"Can't Give Up",artist:'ZXXXQ',src:'/music/cant-give-up.mp3'}]);
  });
 });

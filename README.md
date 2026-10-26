@@ -30,7 +30,9 @@ Website artwork is local: `public/images/generated/*.webp`; portrait: `public/im
 
 ## Background music
 
-Add authorized MP3 files to `public/music/` and configure `music.tracks` in `data/site.ts` with `title`, `artist`, `src` and `cover`. The shared player attempts autoplay when a track is configured, observes browser autoplay restrictions, remembers pause preference, and stays mounted during internal navigation. An empty track list shows an honest unconfigured state. Audio failure does not block navigation. No online music API, weather or online chat is used.
+Current track: **ZXXXQ — Can’t Give Up**, selected from the owner’s local FLAC and encoded as a 192 kbps stereo MP3 (about 3.1 MB, 2:09). The original file is unchanged. Default player volume is 25%, configured in `music.volume`.
+
+To replace it, add MP3 files to `public/music/` and configure `music.tracks` in `data/site.ts` with `title`, `artist`, `src` and `cover`. The shared player attempts autoplay when a track is configured, observes browser autoplay restrictions, remembers pause preference, and stays mounted during internal navigation. An empty track list shows an honest unconfigured state. Audio failure does not block navigation. No online music API, weather or online chat is used.
 
 ## Guestbook
 

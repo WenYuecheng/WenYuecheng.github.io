@@ -10,4 +10,4 @@ For guestbook backup, use SQLite's online backup interface and copy its persiste
 
 Rollback: synchronize a dated `site.before` back into the existing static directory (do not replace the directory), restore `Caddyfile.before`, validate and reload Caddy. Retain guestbook data independently. Check both application health URLs and both portfolio languages after every release. GitHub Pages is a separate deployment from the same Git commit/export.
 
-Music is currently unconfigured. Add an authorized local MP3 and metadata to `data/site.ts`, then verify play/pause, browser-blocked autoplay, cross-page continuity and unavailable-file behavior using that track before publication.
+Music is configured as ZXXXQ — Can’t Give Up, from the owner-selected local FLAC. The web copy is `public/music/cant-give-up.mp3`, 192 kbps stereo, with default volume 25%. Keep the original audio outside the site. Local browser verification covers real decoding/playback, autoplay blocking, play/pause preference, internal-page and language continuity, plus unavailable-file behavior. Publication remains paused pending the owner’s local confirmation.

@@ -42,9 +42,9 @@ test('contact and safe guestbook publication',async({page},info)=>{
  await expect(page.locator('.pinned-note img')).toHaveCount(0);
  await page.screenshot({path:`test-results/guestbook-${info.project.name}.png`,fullPage:true});
 });
-test('unconfigured music is truthful, navigation and small cat work',async({page},info)=>{
- await page.goto('/zh/');await expect(page.locator('audio')).toHaveCount(0);
- await page.getByRole('button',{name:'等待一段合适的旋律'}).click();await expect(page.getByText('暂未添加音乐曲目。')).toBeVisible();
+test('selected music, navigation and small cat work',async({page},info)=>{
+ await page.goto('/zh/');await expect(page.locator('audio')).toHaveAttribute('src','/music/cant-give-up.mp3');
+ await expect(page.locator('.music-copy strong')).toHaveText("Can't Give Up");
  await page.getByRole('button',{name:'和小猫打个招呼'}).click();await expect(page.getByText('你好呀，好奇心在这里永远受欢迎。')).toBeVisible();
  if(info.project.name==='mobile'){await page.getByRole('button',{name:'打开导航'}).click();await page.getByRole('navigation').getByRole('link',{name:'项目',exact:true}).click();}else await page.getByRole('navigation').getByRole('link',{name:'项目',exact:true}).click();
  await expect(page).toHaveURL('/zh/projects/');

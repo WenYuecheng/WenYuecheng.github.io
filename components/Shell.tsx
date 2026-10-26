@@ -41,8 +41,8 @@ export function Shell({children}:{children:ReactNode}) {
 }
 export function BackgroundMusic({locale}:{locale:Locale}) {
  const t=content[locale].controls;const track=music.tracks[0];const audio=useRef<HTMLAudioElement>(null);const [playing,setPlaying]=useState(false),[hint,setHint]=useState(false),[blocked,setBlocked]=useState(false),[failed,setFailed]=useState(false);
- useEffect(()=>{if(!track||!music.autoPlay||readPreference('yuecheng-music')==='off')return;audio.current?.play().catch(()=>setBlocked(true));},[track]);
- const toggle=async()=>{if(!track){setHint(!hint);return;}if(playing){audio.current?.pause();savePreference('yuecheng-music','off');}else {try{await audio.current?.play();savePreference('yuecheng-music','on');setBlocked(false);}catch{setBlocked(true);}}};
+ useEffect(()=>{if(audio.current)audio.current.volume=music.volume;if(!track||!music.autoPlay||readPreference('yuecheng-music')==='off')return;audio.current?.play().catch(()=>setBlocked(true));},[track]);
+ const toggle=async()=>{if(!track){setHint(!hint);return;}if(playing){audio.current?.pause();savePreference('yuecheng-music','off');}else {try{if(failed)audio.current?.load();await audio.current?.play();savePreference('yuecheng-music','on');setBlocked(false);}catch{setBlocked(true);}}};
  return <div className={`music-widget ${playing?'is-playing':''}`}>
   {track&&<audio ref={audio} src={track.src} loop preload="metadata" onPlay={()=>{setPlaying(true);setFailed(false);setBlocked(false);}} onPause={()=>setPlaying(false)} onError={()=>{setFailed(true);setPlaying(false);}}/>}
   <button className="music-toggle" aria-label={track?(playing?t.pause:t.play):t.noMusic} onClick={toggle} aria-pressed={playing}><span className="mini-record">{track?(playing?<Pause size={15}/>:<Play size={15}/>):<Music2 size={16}/>}</span><span className="music-copy"><strong>{failed?t.audioError:track?.title||t.music}</strong><small>{failed?t.audioError:track?(blocked?t.blocked:track.artist):t.noMusic}</small></span>{playing?<span className="audio-bars"><i/><i/><i/></span>:<Waves size={17} className="music-wave"/>}</button>
