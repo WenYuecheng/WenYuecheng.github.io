@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ArrowUpRight, Check, ChevronUp, Menu, Moon, Music2, Pause, Play, Sparkles, Sun, Waves, X } from 'lucide-react';
 import { content, music, routeFor, site, type Locale } from '../data/site';
 import { Atmosphere } from './Atmosphere';
@@ -40,9 +40,43 @@ export function Shell({children}:{children:ReactNode}) {
  </>;
 }
 export function BackgroundMusic({locale}:{locale:Locale}) {
- const t=content[locale].controls;const track=music.tracks[0];const audio=useRef<HTMLAudioElement>(null);const [playing,setPlaying]=useState(false),[hint,setHint]=useState(false),[blocked,setBlocked]=useState(false),[failed,setFailed]=useState(false);
- useEffect(()=>{if(audio.current)audio.current.volume=music.volume;if(!track||!music.autoPlay||readPreference('yuecheng-music')==='off')return;audio.current?.play().catch(()=>setBlocked(true));},[track]);
- const toggle=async()=>{if(!track){setHint(!hint);return;}if(playing){audio.current?.pause();savePreference('yuecheng-music','off');}else {try{if(failed)audio.current?.load();await audio.current?.play();savePreference('yuecheng-music','on');setBlocked(false);}catch{setBlocked(true);}}};
+ const t=content[locale].controls, track=music.tracks[0];
+ const audio=useRef<HTMLAudioElement>(null), userPaused=useRef(false);
+ const [playing,setPlaying]=useState(false),[hint,setHint]=useState(false),[blocked,setBlocked]=useState(false),[failed,setFailed]=useState(false);
+ const requestPlayback=useCallback(async(reload=false)=>{
+  const element=audio.current;if(!element)return;
+  userPaused.current=false;
+  if(reload||element.error)element.load();
+  try{await element.play();setBlocked(false);}
+  catch(error){
+   if(userPaused.current)return;
+   const name=error instanceof DOMException?error.name:'';
+   if(name==='NotAllowedError')setBlocked(true);
+   else if(name!=='AbortError')setFailed(true);
+  }
+ },[]);
+ useEffect(()=>{
+  if(audio.current)audio.current.volume=music.volume;
+  // Every new visit starts enabled; a pause survives internal page changes.
+  if(track&&music.autoPlay)void requestPlayback();
+ },[track,requestPlayback]);
+ useEffect(()=>{
+  if(!blocked||!track||failed)return;
+  const onInteraction=(event:Event)=>{
+   if(userPaused.current)return;
+   if(event.target instanceof Element&&event.target.closest('.music-widget'))return;
+   if(event instanceof KeyboardEvent&&(event.metaKey||event.ctrlKey||event.altKey))return;
+   void requestPlayback();
+  };
+  document.addEventListener('click',onInteraction);
+  document.addEventListener('keydown',onInteraction);
+  return()=>{document.removeEventListener('click',onInteraction);document.removeEventListener('keydown',onInteraction);};
+ },[blocked,failed,track,requestPlayback]);
+ const toggle=()=>{
+  if(!track){setHint(!hint);return;}
+  if(playing){userPaused.current=true;audio.current?.pause();}
+  else void requestPlayback(failed);
+ };
  return <div className={`music-widget ${playing?'is-playing':''}`}>
   {track&&<audio ref={audio} src={track.src} loop preload="metadata" onPlay={()=>{setPlaying(true);setFailed(false);setBlocked(false);}} onPause={()=>setPlaying(false)} onError={()=>{setFailed(true);setPlaying(false);}}/>}
   <button className="music-toggle" aria-label={track?(playing?t.pause:t.play):t.noMusic} onClick={toggle} aria-pressed={playing}><span className="mini-record">{track?(playing?<Pause size={15}/>:<Play size={15}/>):<Music2 size={16}/>}</span><span className="music-copy"><strong>{failed?t.audioError:track?.title||t.music}</strong><small>{failed?t.audioError:track?(blocked?t.blocked:track.artist):t.noMusic}</small></span>{playing?<span className="audio-bars"><i/><i/><i/></span>:<Waves size={17} className="music-wave"/>}</button>

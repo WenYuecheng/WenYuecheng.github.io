@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 const api='https://wenyuecheng.cn/api/portal';
 test('bilingual personal home, real portrait, admission and only two projects',async({page},info)=>{
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto('/zh/');await expect(page.locator('h1')).toContainText('心有所向');
+ await page.goto('/zh/');await expect(page.locator('h1')).toContainText('时来天地皆同力');
  await expect(page.getByAltText('温悦成的本人照片')).toBeVisible();
  await expect(page.getByText('已录取 · 2027 年 9 月入学')).toBeVisible();
  await expect(page.locator('.project-card')).toHaveCount(2);
@@ -14,7 +14,7 @@ test('bilingual personal home, real portrait, admission and only two projects',a
  await page.getByRole('button',{name:'切换日夜主题'}).click();await expect(page.locator('html')).toHaveClass('dark');
  await page.screenshot({path:`test-results/home-${info.project.name}-dark.png`,fullPage:true});
  await page.getByRole('button',{name:'开关背景动效'}).click();await expect(page.locator('html')).toHaveAttribute('data-motion','off');
- await page.getByRole('link',{name:'English',exact:true}).click();await expect(page).toHaveURL(/\/$/);await expect(page.locator('h1')).toContainText('Keep wondering');
+ await page.getByRole('link',{name:'English',exact:true}).click();await expect(page).toHaveURL(/\/$/);await expect(page.locator('h1')).toContainText('With fortune');
  await expect(page.locator('html')).toHaveClass('dark');expect(errors).toEqual([]);
 });
 test('project list, walkthrough, notes and verified external links',async({page},info)=>{
