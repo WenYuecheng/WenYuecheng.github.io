@@ -60,3 +60,35 @@ test('no-JavaScript guestbook explains disabled controls',async({browser})=>{
  await expect(page.getByRole('button',{name:'Pin my note',exact:true})).toBeDisabled();
  expect(new URL(page.url()).search).toBe('');await context.close();
 });
+
+test('reload replaces the oldest note on a full wall after uncertain POST',async({page})=>{
+ await page.clock.install();let loads=0;
+ const previous=Array.from({length:60},(_,index)=>({id:`existing-${index}`,name:'A visitor',message:`Existing note ${index}`,createdAt:new Date(Date.UTC(2026,9,26,0,59-index)).toISOString()}));
+ const fresh={id:'newer-note',name:'Tester',message:'This newer note was saved during the timeout.',createdAt:'2026-10-27T00:00:00Z'};
+ await page.route(api,async route=>{
+  if(route.request().method()==='POST')return;
+  loads++;await route.fulfill({json:{messages:loads===1?previous:[fresh,...previous,{...fresh}]}});
+ });
+ await page.goto('/guestbook/');await expect(page.locator('.pinned-note')).toHaveCount(60);
+ await page.getByLabel('What would you like to say?').fill(fresh.message);
+ await page.getByRole('button',{name:'Pin my note',exact:true}).click();await expect(page.getByRole('button',{name:'Pinning…'})).toBeDisabled();
+ await page.clock.fastForward(10001);await expect(page.getByText(/request timed out/i)).toBeVisible();
+ await page.getByRole('button',{name:'Retry loading notes',exact:true}).click();
+ await expect(page.locator('.pinned-note').first().locator('p')).toHaveText(fresh.message);
+ await expect(page.locator('.pinned-note').filter({hasText:fresh.message})).toHaveCount(1);
+ await expect(page.locator('.pinned-note')).toHaveCount(60);
+ await expect(page.getByText('Existing note 59',{exact:true})).toHaveCount(0);
+ await expect(page.getByLabel('What would you like to say?')).toHaveValue(fresh.message);
+});
+
+test('note order preserves ties and puts invalid dates last',async({page})=>{
+ const messages=[
+  {...note,id:'invalid-a',message:'Undated first',createdAt:'invalid'},
+  {...note,id:'tie-a',message:'Equal date first'},
+  {...note,id:'latest',message:'Newest valid',createdAt:'2026-10-27T00:00:00Z'},
+  {...note,id:'tie-b',message:'Equal date second'},
+  {...note,id:'invalid-b',message:'Undated second',createdAt:''},
+ ];
+ await page.route(api,route=>route.fulfill({json:{messages}}));await page.goto('/guestbook/');
+ await expect(page.locator('.pinned-note>p')).toHaveText(['Newest valid','Equal date first','Equal date second','Undated first','Undated second']);
+});

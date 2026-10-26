@@ -12,7 +12,11 @@ function mergeNotes(current: Note[], incoming: Note[]) {
   if (seen.has(id)) return false;
   seen.add(id);
   return true;
- }).slice(0, 60);
+ }).map((note, index) => {
+  const timestamp = Date.parse(note.createdAt);
+  return { note, index, timestamp: Number.isFinite(timestamp) ? timestamp : Number.NEGATIVE_INFINITY };
+ }).sort((a, b) => b.timestamp - a.timestamp || a.index - b.index)
+  .slice(0, 60).map(entry => entry.note);
 }
 
 export default function Guestbook({ locale }: { locale: Locale }) {
