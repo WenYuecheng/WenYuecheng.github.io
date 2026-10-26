@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import secrets
 import subprocess
 import uuid
 from pathlib import Path
@@ -36,10 +37,10 @@ import time
 import urllib.error
 import urllib.request
 
-def request(path, payload=None, peer="203.0.113.1", origin="https://wenyuecheng.cn"):
+def request(path, payload=None, token=FIRST_TOKEN, peer="203.0.113.1", origin="https://wenyuecheng.cn"):
     body = json.dumps(payload).encode() if payload is not None else None
     req = urllib.request.Request("http://127.0.0.1:8093" + path, data=body, headers={
-        "Content-Type": "application/json", "Origin": origin, "X-Portal-Client-IP": peer,
+        "Authorization": "Bearer " + token, "Content-Type": "application/json", "Origin": origin, "X-Portal-Client-IP": peer,
     })
     try:
         response = urllib.request.urlopen(req, timeout=2)
@@ -56,17 +57,20 @@ for attempt in range(100):
         if attempt == 99:
             raise
         time.sleep(0.1)
+assert request("/messages", {"message": "anonymous"}, token="")[0] == 401
+assert request("/projects/weyra/links/github", token="")[0] == 401
+assert request("/dev/mailbox?email=a@school.edu")[0] == 404
 for i in range(3):
     status, payload, headers = request("/messages", {"message": "anchor " + str(i)})
     assert status == 201
     assert headers["Access-Control-Allow-Origin"] == "https://wenyuecheng.cn"
 assert request("/messages", {"message": "blocked"})[0] == 429
 # The explicit local-proxy header must separate peers over shared loopback.
-assert request("/messages", {"message": "other peer"}, peer="203.0.113.2")[0] == 201
+assert request("/messages", {"message": "other peer"}, peer="203.0.113.2", token=SECOND_TOKEN)[0] == 201
 assert request("/messages", {"message": "bad origin"}, origin="https://invalid.example")[0] == 403
 status, payload, _headers = request("/messages")
-assert status == 200 and len(payload["messages"]) == 4
-print("Shared-namespace smoke passed: anchor reaches loopback API; CORS, proxy peer separation and rate limits work.")
+assert status == 200 and payload["messages"] == []
+print("Shared-namespace smoke passed: anchor reaches loopback API; production mailbox exclusion, authorization, pending privacy, CORS, proxy peer separation and rate limits work.")
 '''
 
 
@@ -100,7 +104,27 @@ def main():
         inspection = json.loads(subprocess.check_output(["docker", "inspect", guestbook], text=True))[0]
         assert inspection["HostConfig"]["NetworkMode"] == f"container:{anchor_id}", inspection["HostConfig"]["NetworkMode"]
         assert not inspection["HostConfig"]["PortBindings"]
-        subprocess.run(["docker", "exec", "-i", anchor, "python", "-"], input=PROBE, text=True, check=True)
+        first_token, second_token = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
+        seed = """
+import time, urllib.request
+for attempt in range(100):
+    try:
+        urllib.request.urlopen('http://127.0.0.1:8093/health', timeout=2).close()
+        break
+    except OSError:
+        time.sleep(0.1)
+from app import Settings, initialize, connect, digest
+settings = Settings.from_env()
+salt = initialize(settings)
+with connect(settings.db_path) as db:
+    for i, token in enumerate(TOKENS):
+        uid = 'smoke-' + str(i)
+        db.execute('INSERT INTO users VALUES (?,?,?)', (uid, uid + '@school.edu', 'Smoke'))
+        db.execute('INSERT INTO sessions VALUES (?,?,?)', (digest(salt, 'session', token), uid, time.time() + 28800))
+""".replace('TOKENS', repr((first_token, second_token)))
+        subprocess.run(["docker", "exec", "-i", guestbook, "python", "-"], input=seed, text=True, check=True)
+        probe = 'FIRST_TOKEN = ' + repr(first_token) + '\nSECOND_TOKEN = ' + repr(second_token) + '\n' + PROBE
+        subprocess.run(["docker", "exec", "-i", anchor, "python", "-"], input=probe, text=True, check=True)
     except Exception:
         subprocess.run(["docker", "logs", guestbook], check=False)
         raise

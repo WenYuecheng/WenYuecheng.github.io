@@ -1,20 +1,27 @@
-"""Small, independent guestbook. No external services or API credentials."""
+"""Independent portfolio accounts, moderated guestbook, and protected link API."""
 
+import fcntl
 import hashlib
 import hmac
 import ipaddress
+import json
 import math
 import os
+import re
 import secrets
+import smtplib
 import sqlite3
+import ssl
 import uuid
 from collections.abc import Callable, Iterator
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from email.message import EmailMessage
 from pathlib import Path
+from typing import Annotated
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -36,6 +43,16 @@ class Settings:
     development: bool = False
     trust_proxy_header: bool = False
     hmac_salt: str | None = None
+    admin_email: str = ""
+    mail_mode: str = "smtp"
+    dev_mailbox: bool = False
+    outbox_path: Path | None = None
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    smtp_security: str = "starttls"
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -44,6 +61,16 @@ class Settings:
             development=os.environ.get("PORTAL_ENV") == "development",
             trust_proxy_header=os.environ.get("PORTAL_TRUST_LOCAL_PROXY") == "1",
             hmac_salt=os.environ.get("PORTAL_HMAC_SALT"),
+            admin_email=os.environ.get("PORTAL_ADMIN_EMAIL", ""),
+            mail_mode=os.environ.get("PORTAL_MAIL_MODE", "smtp"),
+            dev_mailbox=os.environ.get("PORTAL_DEV_MAILBOX") == "1",
+            outbox_path=Path(os.environ["PORTAL_OUTBOX_PATH"]) if os.environ.get("PORTAL_OUTBOX_PATH") else None,
+            smtp_host=os.environ.get("PORTAL_SMTP_HOST", ""),
+            smtp_port=int(os.environ.get("PORTAL_SMTP_PORT", "587")),
+            smtp_user=os.environ.get("PORTAL_SMTP_USER", ""),
+            smtp_password=os.environ.get("PORTAL_SMTP_PASSWORD", ""),
+            smtp_from=os.environ.get("PORTAL_SMTP_FROM", ""),
+            smtp_security=os.environ.get("PORTAL_SMTP_SECURITY", "starttls"),
         )
 
 
@@ -181,6 +208,31 @@ def initialize(settings: Settings) -> bytes:
             CREATE INDEX IF NOT EXISTS rate_time ON rate_events(created_at);
             CREATE INDEX IF NOT EXISTS messages_time ON messages(created_at);
         """)
+    with connect(settings.db_path) as db:
+        columns = {row[1] for row in db.execute("PRAGMA table_info(messages)")}
+        for name, definition in (("user_id", "TEXT"), ("status", "TEXT NOT NULL DEFAULT 'pending'"), ("reviewed_at", "TEXT")):
+            if name not in columns:
+                db.execute(f"ALTER TABLE messages ADD COLUMN {name} {definition}")
+        db.executescript("""
+            CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, nickname TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS challenges (
+                id TEXT PRIMARY KEY, email TEXT NOT NULL, code_hash TEXT NOT NULL,
+                created_at REAL NOT NULL, expires_at REAL NOT NULL,
+                attempts INTEGER NOT NULL DEFAULT 0, invalidated INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE INDEX IF NOT EXISTS challenge_email ON challenges(email);
+            CREATE TABLE IF NOT EXISTS sessions (
+                token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL, expires_at REAL NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS events (
+                kind TEXT NOT NULL, peer_key TEXT NOT NULL, subject_key TEXT NOT NULL, created_at REAL NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS event_limits ON events(kind, created_at);
+            CREATE TABLE IF NOT EXISTS review_audit (
+                id INTEGER PRIMARY KEY, message_id TEXT NOT NULL, actor_id TEXT NOT NULL,
+                reviewed_at TEXT NOT NULL, from_status TEXT NOT NULL, to_status TEXT NOT NULL
+            );
+        """)
     settings.db_path.chmod(0o600)
     return salt
 
@@ -200,11 +252,161 @@ def peer_key(request: Request, settings: Settings, salt: bytes) -> str:
     return hmac.new(salt, peer.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
-def create_app(
-    settings: Settings | None = None, clock: Callable[[], datetime] | None = None,
-) -> FastAPI:
+# ASCII mailbox syntax, with label boundaries rather than a substring match.
+EMAIL_LOCAL = re.compile(r"[a-z0-9!#$%&'*+/=?^_`{|}~.-]+", re.ASCII)
+DOMAIN_LABEL = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?", re.ASCII)
+PROJECT_LINKS = {
+    ('weyra', 'github'): 'https://github.com/WenYuecheng/Weyra',
+    ('weyra', 'architecture'): 'https://github.com/WenYuecheng/Weyra/blob/main/docs/ARCHITECTURE.md',
+    ('weyra', 'evidence'): 'https://github.com/WenYuecheng/Weyra/tree/main/docs/evidence',
+    ('solaceai', 'demo'): 'https://solaceai.wenyuecheng.cn',
+    ('solaceai', 'legacy'): 'https://mindbridge.wenyuecheng.cn',
+}
+
+
+def normalize_email(value: str) -> str:
+    email = value.strip().lower()
+    if not email.isascii() or len(email) > 254 or email.count('@') != 1:
+        raise ValueError('Invalid email.')
+    local, domain = email.split('@')
+    if not 1 <= len(local) <= 64 or not EMAIL_LOCAL.fullmatch(local) or local.startswith('.') or local.endswith('.') or '..' in local:
+        raise ValueError('Invalid email.')
+    labels = domain.split('.')
+    if len(labels) < 2 or not all(DOMAIN_LABEL.fullmatch(label) for label in labels):
+        raise ValueError('Invalid email.')
+    return email
+
+
+def eligible_email(value: str, admin_email: str) -> str:
+    email = normalize_email(value)
+    labels = email.split('@')[1].split('.')
+    educational = (len(labels) >= 2 and labels[-1] == 'edu') or (
+        len(labels) >= 3 and labels[-2] == 'edu' and re.fullmatch('[a-z]{2}', labels[-1])
+    )
+    if email != admin_email and not educational:
+        raise ValueError('Use an educational email address.')
+    return email
+
+
+def digest(salt: bytes, domain: str, value: str) -> str:
+    return hmac.new(salt, (domain + '\0' + value).encode(), hashlib.sha256).hexdigest()
+
+
+def iso(timestamp: float) -> str:
+    return datetime.fromtimestamp(timestamp, timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z')
+
+
+def validate_settings(settings: Settings) -> str:
+    admin = normalize_email(settings.admin_email) if settings.admin_email else ''
+    if settings.mail_mode not in ('smtp', 'file'):
+        raise ValueError('PORTAL_MAIL_MODE must be smtp or file.')
+    if settings.mail_mode == 'file' and (not settings.development or settings.trust_proxy_header or not settings.outbox_path):
+        raise ValueError('File mail requires explicit development, an outbox path, and no trusted proxy.')
+    if settings.dev_mailbox and (not settings.development or settings.mail_mode != 'file' or settings.trust_proxy_header):
+        raise ValueError('Development mailbox requires file mail, development, and no trusted proxy.')
+    if settings.smtp_security not in ('ssl', 'starttls') or not 1 <= settings.smtp_port <= 65535:
+        raise ValueError('SMTP requires verified SSL or STARTTLS and a valid port.')
+    if any(c in settings.smtp_host for c in '\r\n'):
+        raise ValueError('Invalid SMTP host.')
+    if settings.smtp_from:
+        normalize_email(settings.smtp_from)
+    return admin
+
+
+def outbox(settings: Settings, timestamp: float, message: dict | None = None) -> list[dict]:
+    """Private, bounded local development file; lock covers read/prune/write."""
+    path = settings.outbox_path
+    if path is None:
+        raise ValueError('No development outbox.')
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(fd, 'r+', encoding='utf-8') as stream:
+        fcntl.flock(stream, fcntl.LOCK_EX)
+        os.fchmod(stream.fileno(), 0o600)
+        data = stream.read(131073)
+        if len(data) > 131072:
+            rows = []
+        else:
+            rows = json.loads(data) if data else []
+        rows = [row for row in rows if row['timestamp'] > timestamp - 600]
+        if message:
+            rows.append(message)
+        rows = rows[-100:]
+        stream.seek(0)
+        json.dump(rows, stream, ensure_ascii=True)
+        stream.truncate()
+        stream.flush()
+        return rows
+
+
+def deliver_code(settings: Settings, email: str, code: str, timestamp: float) -> None:
+    if settings.mail_mode == 'file':
+        outbox(settings, timestamp, {'email': email, 'code': code, 'createdAt': iso(timestamp), 'timestamp': timestamp})
+        return
+    if not settings.smtp_host or not settings.smtp_from:
+        raise OSError('Mail is not configured.')
+    message = EmailMessage()
+    message['Subject'] = 'Your portfolio sign-in code'
+    message['From'] = normalize_email(settings.smtp_from)
+    message['To'] = email
+    message.set_content(f'Your sign-in code is {code}. It expires in 10 minutes.\n'
+                        'This verifies mailbox ownership only. If you did not request it, ignore this email.\n')
+    context = ssl.create_default_context()
+    if settings.smtp_security == 'ssl':
+        smtp = smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=8, context=context)
+    else:
+        smtp = smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=8)
+    with smtp:
+        if settings.smtp_security == 'starttls':
+            smtp.ehlo()
+            smtp.starttls(context=context)
+            smtp.ehlo()
+        if settings.smtp_user:
+            smtp.login(settings.smtp_user, settings.smtp_password)
+        smtp.send_message(message)
+
+
+class StrictInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, strict=True, extra='forbid')
+
+
+class EmailInput(StrictInput):
+    email: str = Field(min_length=3, max_length=254)
+
+
+class VerifyInput(StrictInput):
+    challengeId: str = Field(min_length=1, max_length=64)
+    code: str = Field(pattern=r'^[0-9]{6}$')
+    nickname: str = Field(default='', max_length=40)
+
+
+class ReviewInput(StrictInput):
+    decision: str = Field(pattern=r'^(approved|rejected)$')
+
+
+def limited(db: sqlite3.Connection, kind: str, peer: str, subject: str, timestamp: float,
+            bounds: list[tuple[str, str, int, float]]) -> JSONResponse | None:
+    for column, value, maximum, window in bounds:
+        # Column names are fixed internal literals, never derived from a request.
+        row = db.execute(f'SELECT count(*), min(created_at) FROM events WHERE kind=? AND {column}=? AND created_at>?',
+                         (kind, value, timestamp - window)).fetchone()
+        if row[0] >= maximum:
+            return JSONResponse({'error': 'Too many requests. Please try again later.'}, status_code=429,
+                                headers={'Retry-After': str(max(1, math.ceil(row[1] + window - timestamp)))})
+    day = datetime.fromtimestamp(timestamp, timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+    global_max = 100 if kind == 'issue' else 200 if kind == 'message' else None
+    if global_max and db.execute('SELECT count(*) FROM events WHERE kind=? AND created_at>=?', (kind, day)).fetchone()[0] >= global_max:
+        return JSONResponse({'error': 'Too many requests. Please try again later.'}, status_code=429,
+                            headers={'Retry-After': str(max(1, math.ceil(day + 86400 - timestamp)))})
+    db.execute('DELETE FROM events WHERE created_at < ?', (min(day, timestamp - 3600),))
+    db.execute('INSERT INTO events VALUES (?, ?, ?, ?)', (kind, peer, subject, timestamp))
+    return None
+
+
+def create_app(settings: Settings | None = None, clock: Callable[[], datetime] | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
     clock = clock or (lambda: datetime.now(timezone.utc))
+    admin_email = validate_settings(settings)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -214,69 +416,219 @@ def create_app(
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     origins = PRODUCTION_ORIGINS + (DEVELOPMENT_ORIGINS if settings.development else ())
     app.add_middleware(RequestBoundary, origins=origins)
-    app.add_middleware(
-        CORSMiddleware, allow_origins=list(origins), allow_methods=["GET", "POST"],
-        allow_headers=["Content-Type"], expose_headers=["Retry-After"],
-        allow_credentials=False, max_age=600,
-    )
+    app.add_middleware(CORSMiddleware, allow_origins=list(origins), allow_methods=['GET', 'POST'],
+                       allow_headers=['Content-Type', 'Authorization'], expose_headers=['Retry-After'],
+                       allow_credentials=False, max_age=600)
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(_request: Request, _error: RequestValidationError) -> JSONResponse:
-        return JSONResponse({"error": "Check name and message lengths."}, status_code=422)
+        return JSONResponse({'error': 'Check the submitted fields and lengths.'}, status_code=422)
+
+    @app.exception_handler(HTTPException)
+    async def http_error(_request: Request, error: HTTPException) -> JSONResponse:
+        return JSONResponse({'error': error.detail}, status_code=error.status_code)
 
     @app.exception_handler(sqlite3.Error)
     async def storage_error(_request: Request, _error: sqlite3.Error) -> JSONResponse:
-        return JSONResponse({"error": "Guestbook is temporarily unavailable."}, status_code=503)
+        return JSONResponse({'error': 'Guestbook is temporarily unavailable.'}, status_code=503)
 
-    @app.get("/health")
+    def user_view(row) -> dict:
+        return {'id': row['id'], 'nickname': row['nickname'], 'email': row['email'],
+                'role': 'admin' if row['email'] == admin_email else 'user'}
+
+    def authenticated(request: Request) -> dict:
+        authorization = request.headers.get('authorization', '')
+        scheme, _, token = authorization.partition(' ')
+        if scheme.lower() != 'bearer' or not token or len(token) > 256:
+            raise HTTPException(401, 'Sign in to continue.')
+        token_hash = digest(app.state.salt, 'session', token)
+        with connect(settings.db_path) as db:
+            row = db.execute('SELECT users.*, sessions.expires_at FROM sessions JOIN users ON users.id=sessions.user_id WHERE token_hash=? AND expires_at>?',
+                             (token_hash, clock().timestamp())).fetchone()
+        if row is None:
+            raise HTTPException(401, 'Sign in to continue.')
+        return {'user': user_view(row), 'expiresAt': iso(row['expires_at']), 'token_hash': token_hash}
+
+    CurrentUser = Annotated[dict, Depends(authenticated)]
+
+    def administrator(session: CurrentUser) -> dict:
+        if session['user']['role'] != 'admin':
+            raise HTTPException(403, 'Administrator access required.')
+        return session
+
+    AdminUser = Annotated[dict, Depends(administrator)]
+
+    @app.get('/health')
     def health() -> Health:
         with connect(settings.db_path) as db:
-            db.execute("SELECT 1 FROM messages LIMIT 1")
+            db.execute('SELECT 1 FROM messages LIMIT 1')
         return Health()
 
-    @app.get("/messages")
-    def list_messages() -> MessageList:
-        with connect(settings.db_path) as db:
-            rows = db.execute(
-                "SELECT id, name, message, created_at AS createdAt "
-                "FROM messages ORDER BY created_at DESC, rowid DESC LIMIT 60"
-            ).fetchall()
-        return MessageList(messages=[PublicMessage(**dict(row)) for row in rows])
+    @app.get('/auth/config')
+    def auth_config() -> dict:
+        return {'registration': 'edu', 'deliveryMode': 'local' if settings.mail_mode == 'file' else 'smtp', 'devMailbox': settings.dev_mailbox}
 
-    @app.post("/messages", status_code=201, response_model=PublicMessage)
-    def create_message(payload: MessageInput, request: Request):
-        now = clock().astimezone(timezone.utc)
-        item = PublicMessage(
-            id=uuid.uuid4().hex, name=payload.name or "Anonymous", message=payload.message,
-            createdAt=now.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
-        )
+    @app.post('/auth/request-code')
+    def request_code(payload: EmailInput, request: Request):
+        try:
+            email = eligible_email(payload.email, admin_email)
+        except ValueError:
+            raise HTTPException(422, 'Use a valid educational email address.') from None
+        timestamp = clock().timestamp()
+        peer = peer_key(request, settings, app.state.salt)
+        subject = digest(app.state.salt, 'email', email)
+        challenge = secrets.token_urlsafe(24)
+        code = f'{secrets.randbelow(1000000):06d}'
+        failed = False
+        with connect(settings.db_path) as db:
+            db.execute('BEGIN IMMEDIATE')
+            blocked = limited(db, 'issue', peer, subject, timestamp, [
+                ('subject_key', subject, 1, 60), ('subject_key', subject, 3, 3600), ('peer_key', peer, 10, 3600)])
+            if blocked:
+                return blocked
+            db.execute('DELETE FROM challenges WHERE created_at < ?', (timestamp - 86400,))
+            db.execute('UPDATE challenges SET invalidated=1 WHERE email=?', (email,))
+            db.execute('INSERT INTO challenges(id,email,code_hash,created_at,expires_at) VALUES (?,?,?,?,?)',
+                       (challenge, email, digest(app.state.salt, 'otp', challenge + '\0' + email + '\0' + code), timestamp, timestamp + 600))
+            try:
+                deliver_code(settings, email, code, timestamp)
+            except (OSError, smtplib.SMTPException, ValueError):
+                db.execute('UPDATE challenges SET invalidated=1 WHERE id=?', (challenge,))
+                failed = True
+        if failed:
+            raise HTTPException(503, 'Email delivery is temporarily unavailable.')
+        return {'challengeId': challenge, 'expiresIn': 600, 'resendAfter': 60, 'deliveryMode': 'local' if settings.mail_mode == 'file' else 'smtp'}
+
+    @app.post('/auth/verify')
+    def verify(payload: VerifyInput, request: Request):
+        timestamp = clock().timestamp()
+        peer = peer_key(request, settings, app.state.salt)
+        with connect(settings.db_path) as db:
+            db.execute('BEGIN IMMEDIATE')
+            row = db.execute('SELECT * FROM challenges WHERE id=?', (payload.challengeId,)).fetchone()
+            subject = digest(app.state.salt, 'email', row['email']) if row else 'unknown'
+            bounds = [('peer_key', peer, 20, 600)]
+            if row:
+                bounds.append(('subject_key', subject, 10, 600))
+            blocked = limited(db, 'verify', peer, subject, timestamp, bounds)
+            if blocked:
+                return blocked
+            if row and row['attempts'] >= 5:
+                return JSONResponse({'error': 'Too many verification attempts.'}, status_code=429, headers={'Retry-After': '600'})
+            if not row or row['invalidated'] or row['expires_at'] <= timestamp:
+                return JSONResponse({'error': 'Code is invalid or expired.'}, status_code=400)
+            db.execute('UPDATE challenges SET attempts=attempts+1 WHERE id=?', (row['id'],))
+            actual = digest(app.state.salt, 'otp', row['id'] + '\0' + row['email'] + '\0' + payload.code)
+            if not hmac.compare_digest(actual, row['code_hash']):
+                return JSONResponse({'error': 'Code is invalid or expired.'}, status_code=400)
+            db.execute('UPDATE challenges SET invalidated=1 WHERE id=?', (row['id'],))
+            db.execute('INSERT OR IGNORE INTO users VALUES (?, ?, ?)', (uuid.uuid4().hex, row['email'], payload.nickname or 'A visitor'))
+            user = db.execute('SELECT * FROM users WHERE email=?', (row['email'],)).fetchone()
+            token = secrets.token_urlsafe(32)
+            db.execute('DELETE FROM sessions WHERE expires_at<=?', (timestamp,))
+            db.execute('INSERT INTO sessions VALUES (?, ?, ?)', (digest(app.state.salt, 'session', token), user['id'], timestamp + 28800))
+            result = {'token': token, 'expiresAt': iso(timestamp + 28800), 'user': user_view(user)}
+        return result
+
+    @app.get('/auth/me')
+    def me(session: CurrentUser) -> dict:
+        return {'user': session['user'], 'expiresAt': session['expiresAt']}
+
+    @app.post('/auth/logout', status_code=204)
+    def logout(_payload: StrictInput, session: CurrentUser) -> Response:
+        with connect(settings.db_path) as db:
+            db.execute('DELETE FROM sessions WHERE token_hash=?', (session['token_hash'],))
+        return Response(status_code=204)
+
+    if settings.dev_mailbox:
+        @app.get('/dev/mailbox')
+        def mailbox(request: Request, email: str = '') -> dict:
+            peer = request.client.host if request.client else ''
+            host = request.headers.get('host', '').lower()
+            valid_host = re.fullmatch(r'(localhost|127\.0\.0\.1)(?::([0-9]{1,5}))?', host)
+            if valid_host and valid_host.group(2) and not 1 <= int(valid_host.group(2)) <= 65535:
+                valid_host = None
+            try:
+                local_peer = ipaddress.ip_address(peer).is_loopback
+            except ValueError:
+                local_peer = False
+            origin = request.headers.get('origin')
+            if not local_peer or not valid_host or (origin and origin not in DEVELOPMENT_ORIGINS):
+                raise HTTPException(404, 'Not found.')
+            try:
+                email = normalize_email(email)
+            except ValueError:
+                raise HTTPException(422, 'Invalid email.') from None
+            rows = outbox(settings, clock().timestamp())
+            return {'messages': [{k: row[k] for k in ('email', 'code', 'createdAt')} for row in rows if row['email'] == email]}
+
+    def message_view(row, private: bool = False, admin: bool = False) -> dict:
+        item = {'id': row['id'], 'name': row['name'], 'message': row['message'], 'createdAt': row['created_at']}
+        if private:
+            item['status'] = row['status']
+        if admin:
+            item['email'] = row['email'] or ''
+            if row['reviewed_at']:
+                item['reviewedAt'] = row['reviewed_at']
+        return item
+
+    @app.get('/messages', response_model=MessageList)
+    def list_messages() -> dict:
+        with connect(settings.db_path) as db:
+            rows = db.execute("SELECT * FROM messages WHERE status='approved' ORDER BY created_at DESC, rowid DESC LIMIT 60").fetchall()
+        return {'messages': [message_view(row) for row in rows]}
+
+    @app.post('/messages', status_code=201)
+    def create_message(payload: MessageInput, request: Request, session: CurrentUser):
+        timestamp = clock().timestamp()
+        user = session['user']
+        item = {'id': uuid.uuid4().hex, 'name': user['nickname'], 'message': payload.message,
+                'createdAt': iso(timestamp), 'status': 'pending'}
         if payload.website:
             return item
-        key = peer_key(request, settings, app.state.salt)
-        timestamp = now.timestamp()
-        window_start = timestamp - 600
-        day_start = now.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+        peer = peer_key(request, settings, app.state.salt)
         with connect(settings.db_path) as db:
-            # Serialize the check and write across threads and future processes.
-            db.execute("BEGIN IMMEDIATE")
-            db.execute("DELETE FROM rate_events WHERE created_at < ?", (min(day_start, window_start),))
-            peer = db.execute(
-                "SELECT count(*), min(created_at) FROM rate_events WHERE peer_key = ? AND created_at > ?",
-                (key, window_start),
-            ).fetchone()
-            daily = db.execute("SELECT count(*) FROM rate_events WHERE created_at >= ?", (day_start,)).fetchone()[0]
-            if daily >= 200 or peer[0] >= 3:
-                retry = (day_start + 86400 - timestamp) if daily >= 200 else (peer[1] + 600 - timestamp)
-                return JSONResponse(
-                    {"error": "Too many messages. Please try again later."}, status_code=429,
-                    headers={"Retry-After": str(max(1, math.ceil(retry)))},
-                )
-            db.execute("INSERT INTO rate_events(peer_key, created_at) VALUES (?, ?)", (key, timestamp))
-            db.execute(
-                "INSERT INTO messages(id, name, message, created_at) VALUES (?, ?, ?, ?)",
-                (item.id, item.name, item.message, item.createdAt),
-            )
+            db.execute('BEGIN IMMEDIATE')
+            blocked = limited(db, 'message', peer, user['id'], timestamp,
+                              [('peer_key', peer, 3, 600), ('subject_key', user['id'], 3, 600)])
+            if blocked:
+                return blocked
+            db.execute('INSERT INTO messages(id,name,message,created_at,user_id,status) VALUES (?,?,?,?,?,?)',
+                       (item['id'], item['name'], item['message'], item['createdAt'], user['id'], 'pending'))
         return item
+
+    @app.get('/messages/mine')
+    def mine(session: CurrentUser) -> dict:
+        with connect(settings.db_path) as db:
+            rows = db.execute('SELECT * FROM messages WHERE user_id=? ORDER BY created_at DESC, rowid DESC LIMIT 60', (session['user']['id'],)).fetchall()
+        return {'messages': [message_view(row, private=True) for row in rows]}
+
+    @app.get('/admin/messages')
+    def admin_messages(_session: AdminUser, status: Annotated[str, Query(pattern=r'^(pending|approved|rejected)$')] = 'pending') -> dict:
+        with connect(settings.db_path) as db:
+            rows = db.execute('SELECT messages.*,users.email FROM messages LEFT JOIN users ON users.id=messages.user_id WHERE status=? ORDER BY created_at DESC,messages.rowid DESC LIMIT 100', (status,)).fetchall()
+        return {'messages': [message_view(row, private=True, admin=True) for row in rows]}
+
+    @app.post('/admin/messages/{message_id}/review')
+    def review(message_id: str, payload: ReviewInput, session: AdminUser) -> dict:
+        with connect(settings.db_path) as db:
+            db.execute('BEGIN IMMEDIATE')
+            row = db.execute('SELECT * FROM messages WHERE id=?', (message_id,)).fetchone()
+            if not row:
+                raise HTTPException(404, 'Message not found.')
+            reviewed_at = iso(clock().timestamp())
+            db.execute('INSERT INTO review_audit(message_id,actor_id,reviewed_at,from_status,to_status) VALUES (?,?,?,?,?)',
+                       (message_id, session['user']['id'], reviewed_at, row['status'], payload.decision))
+            db.execute('UPDATE messages SET status=?,reviewed_at=? WHERE id=?', (payload.decision, reviewed_at, message_id))
+            updated = db.execute('SELECT messages.*,users.email FROM messages LEFT JOIN users ON users.id=messages.user_id WHERE messages.id=?', (message_id,)).fetchone()
+        return message_view(updated, private=True, admin=True)
+
+    @app.get('/projects/{slug}/links/{key}')
+    def project_link(slug: str, key: str, _session: CurrentUser) -> dict:
+        url = PROJECT_LINKS.get((slug, key))
+        if not url:
+            raise HTTPException(404, 'Link not found.')
+        return {'url': url}
 
     return app
 

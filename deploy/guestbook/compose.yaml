@@ -10,6 +10,15 @@ services:
       PORTAL_DB_PATH: /data/guestbook.sqlite3
       PORTAL_ENV: production
       PORTAL_TRUST_LOCAL_PROXY: "1"
+      PORTAL_MAIL_MODE: smtp
+      PORTAL_DEV_MAILBOX: "0"
+      PORTAL_ADMIN_EMAIL: ${PORTAL_ADMIN_EMAIL:-}
+      PORTAL_SMTP_HOST: ${PORTAL_SMTP_HOST:-}
+      PORTAL_SMTP_PORT: ${PORTAL_SMTP_PORT:-587}
+      PORTAL_SMTP_SECURITY: ${PORTAL_SMTP_SECURITY:-starttls}
+      PORTAL_SMTP_FROM: ${PORTAL_SMTP_FROM:-}
+      PORTAL_SMTP_USER: ${PORTAL_SMTP_USER:-}
+      PORTAL_SMTP_PASSWORD: ${PORTAL_SMTP_PASSWORD:-}
     volumes:
       - guestbook-data:/data
     read_only: true
