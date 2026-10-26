@@ -4,3 +4,12 @@ dist/
 test-results/
 playwright-report/
 .DS_Store
+
+.next/
+out/
+.superpowers/
+.env*
+__pycache__/
+
+*.tsbuildinfo
+.pytest_cache/

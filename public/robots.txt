@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://wenyuecheng.cn/sitemap-index.xml

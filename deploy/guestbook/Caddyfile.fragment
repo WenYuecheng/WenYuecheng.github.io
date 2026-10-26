@@ -1,0 +1,8 @@
+# Import inside the existing wenyuecheng.cn site block, ahead of its fallback.
+# Direct TLS termination at this Caddy instance is assumed.
+handle_path /api/portal/* {
+    reverse_proxy 127.0.0.1:8093 {
+        # Overwrite all client-supplied values; never pass through this header.
+        header_up X-Portal-Client-IP {remote_host}
+    }
+}
