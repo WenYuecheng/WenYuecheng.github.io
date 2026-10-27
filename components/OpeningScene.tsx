@@ -31,12 +31,12 @@ export function OpeningScene(){
   const load=async()=>{
    try{
     // Do not hide the page until a real scene has been configured and decoded.
-    watchdog=setTimeout(finish,4500);
+    watchdog=setTimeout(finish,10000);
     const response=await fetch('/opening/scene.json',{signal:controller.signal});
     if(!response.ok)return;
     const config=parseOpeningScene(await response.json());
     if(!config)return;
-    const [,openFrame]=await Promise.all([config.closed,config.open,config.turned,config.half].map(src=>new Promise<HTMLImageElement>((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=()=>reject(new Error('Opening image unavailable'));image.src=src;})));
+    const [,openFrame]=await Promise.all([config.closed,config.open,config.turned,config.half].map(src=>new Promise<HTMLImageElement>((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=()=>reject(new Error('Opening image unavailable'));image.fetchPriority='high';image.src=src;})));
     if(cancelled||!mayPlay())return;
     clearTimeout(watchdog);
     playedThisDocument.current=true;

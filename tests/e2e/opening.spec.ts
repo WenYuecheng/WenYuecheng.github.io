@@ -95,3 +95,15 @@ test('the face turns with closed eyes before an eyelid reveal and blue glow',asy
  expect(await page.locator('.opening-eye-light').evaluate(el=>Number(getComputedStyle(el).opacity))).toBeGreaterThan(0);
  await page.keyboard.press('Escape');await expect(scene).toHaveCount(0);
 });
+
+test('healthy artwork that takes over 4.5 seconds still plays without blocking home',async({page})=>{
+ const image=await readFile('public/images/generated/hero-night.webp');
+ await page.route('**/images/opening/*.webp',async route=>{
+  await new Promise(resolve=>setTimeout(resolve,5500));
+  await route.fulfill({body:image,contentType:'image/webp'});
+ });
+ await page.goto('/',{waitUntil:'domcontentloaded'});
+ await expect(page.locator('.hero h1')).toBeVisible();
+ await expect(page.locator('.opening-scene')).toBeVisible({timeout:12000});
+ await page.keyboard.press('Escape');await expect(page.locator('.opening-scene')).toHaveCount(0);
+});
