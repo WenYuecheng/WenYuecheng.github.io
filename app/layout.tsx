@@ -8,6 +8,6 @@ import './globals.css';
 import { Shell } from '../components/Shell';
 import { AuthProvider } from '../components/Auth';
 import { site } from '../data/site';
+import {OpeningGate,openingBootstrap,openingGateStyles} from '../components/OpeningGate';
 export const metadata:Metadata={metadataBase:new URL(site.url),title:{default:'Yuecheng Wen — Agents, RSI & PEFT',template:'%s · Yuecheng Wen'},description:'Yuecheng Wen’s personal universe: agents, recursive self-improvement and parameter-efficient fine-tuning. Explore Weyra and SolaceAI.',icons:{icon:'/favicon.svg'},openGraph:{type:'website',siteName:'Yuecheng Wen',images:[{url:'/images/generated/hero-day.webp',width:1536,height:1024}]},twitter:{card:'summary_large_image'}};
-const bootstrap=`try{var r=document.documentElement;r.classList.toggle('dark',localStorage.getItem('yuecheng-theme')==='dark');r.dataset.motion=localStorage.getItem('yuecheng-motion')==='off'?'off':'on';r.lang=location.pathname.startsWith('/zh')?'zh-CN':'en'}catch(e){}`;
-export default function RootLayout({children}:{children:React.ReactNode}) {return <html lang="en" suppressHydrationWarning><head><script dangerouslySetInnerHTML={{__html:bootstrap}}/></head><body><AuthProvider><Shell>{children}</Shell></AuthProvider></body></html>;}
+export default function RootLayout({children}:{children:React.ReactNode}) {return <html lang="en" suppressHydrationWarning><head><style dangerouslySetInnerHTML={{__html:openingGateStyles}}/><script dangerouslySetInnerHTML={{__html:openingBootstrap}}/></head><body><OpeningGate/><AuthProvider><Shell>{children}</Shell></AuthProvider></body></html>;}

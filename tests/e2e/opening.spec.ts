@@ -96,14 +96,54 @@ test('the face turns with closed eyes before an eyelid reveal and blue glow',asy
  await page.keyboard.press('Escape');await expect(scene).toHaveCount(0);
 });
 
-test('healthy artwork that takes over 4.5 seconds still plays without blocking home',async({page})=>{
+test('healthy artwork that takes over 4.5 seconds stays behind the opening gate',async({page})=>{
  const image=await readFile('public/images/generated/hero-night.webp');
  await page.route('**/images/opening/*.webp',async route=>{
   await new Promise(resolve=>setTimeout(resolve,5500));
   await route.fulfill({body:image,contentType:'image/webp'});
  });
  await page.goto('/',{waitUntil:'domcontentloaded'});
- await expect(page.locator('.hero h1')).toBeVisible();
+ await expect(page.locator('#opening-bootstrap')).toBeVisible();
+ await expect(page.locator('.site-experience')).toBeHidden();
  await expect(page.locator('.opening-scene')).toBeVisible({timeout:12000});
  await page.keyboard.press('Escape');await expect(page.locator('.opening-scene')).toHaveCount(0);
+});
+
+test('the first painted document is the opening gate even before React downloads',async({page})=>{
+ const requests:import('@playwright/test').Route[]=[];
+ await page.route('**/_next/static/**/*.js',route=>{requests.push(route);});
+ await page.goto('/zh/',{waitUntil:'commit'});
+ await expect(page.locator('#opening-bootstrap')).toBeVisible();
+ await expect(page.locator('.site-experience')).toBeHidden();
+ await expect(page.locator('html')).toHaveAttribute('data-opening','pending');
+ await page.locator('#opening-bootstrap-skip').click();
+ await expect(page.locator('#opening-bootstrap')).toBeHidden();
+ await expect(page.locator('.hero h1')).toBeVisible();
+ for(const route of requests)await route.abort();
+});
+
+test('slow opening artwork stays above home and hands off without a home flash',async({page})=>{
+ const image=await readFile('public/images/generated/hero-night.webp');
+ await page.route('**/images/opening/*.webp',async route=>{
+  await new Promise(resolve=>setTimeout(resolve,2000));await route.fulfill({body:image,contentType:'image/webp'});
+ });
+ await page.goto('/',{waitUntil:'domcontentloaded'});
+ await expect(page.locator('#opening-bootstrap')).toBeVisible();
+ await expect(page.locator('.site-experience')).toBeHidden();
+ await expect(page.locator('.opening-scene')).toBeVisible();
+ await expect(page.locator('html')).toHaveAttribute('data-opening','playing');
+ await expect(page.locator('#opening-bootstrap')).toBeHidden();
+ await page.keyboard.press('Escape');
+ await expect(page.locator('.opening-scene')).toHaveCount(0);
+ await expect(page.locator('.hero h1')).toBeVisible();
+});
+
+test('the early gate releases at its deadline if application scripts never arrive',async({page})=>{
+ await page.clock.install();const requests:import('@playwright/test').Route[]=[];
+ await page.route('**/_next/static/**/*.js',route=>{requests.push(route);});
+ await page.goto('/',{waitUntil:'commit'});await expect(page.locator('#opening-bootstrap')).toBeVisible();
+ await page.clock.fastForward(12500);
+ await expect(page.locator('html')).toHaveAttribute('data-opening','complete');
+ await expect(page.locator('#opening-bootstrap')).toBeHidden();await expect(page.locator('.hero h1')).toBeVisible();
+ for(const route of requests)await route.abort();
 });

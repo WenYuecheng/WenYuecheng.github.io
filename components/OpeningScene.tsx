@@ -15,27 +15,28 @@ export function OpeningScene(){
   if(pathname!=='/'&&pathname!=='/zh/')return;
   const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');
   const mayPlay=()=>{
-   if(playedThisDocument.current||reduced.matches||document.documentElement.dataset.motion==='off')return false;
+   if(document.documentElement.dataset.opening!=='pending'||playedThisDocument.current||reduced.matches||document.documentElement.dataset.motion==='off')return false;
    try{if(localStorage.getItem('yuecheng-motion')==='off')return false;}catch{/* The in-document guard also works without browser storage. */}
    return true;
   };
-  if(!mayPlay())return;
+  if(!mayPlay()){if(document.documentElement.dataset.opening==='pending')document.documentElement.dataset.opening='complete';return;}
   let cancelled=false,watchdog:ReturnType<typeof setTimeout>|undefined,ending:ReturnType<typeof setTimeout>|undefined;
   const controller=new AbortController();
   let unlock:(()=>void)|undefined;
   const finish=()=>{
    cancelled=true;controller.abort();clearTimeout(watchdog);clearTimeout(ending);unlock?.();unlock=undefined;
+   document.documentElement.dataset.opening='complete';
    setScene(null);setReady(false);
   };
   finishRef.current=finish;
   const load=async()=>{
    try{
-    // Do not hide the page until a real scene has been configured and decoded.
+    // The server-rendered gate covers home until these frames are ready.
     watchdog=setTimeout(finish,10000);
     const response=await fetch('/opening/scene.json',{signal:controller.signal});
-    if(!response.ok)return;
+    if(!response.ok){finish();return;}
     const config=parseOpeningScene(await response.json());
-    if(!config)return;
+    if(!config){finish();return;}
     const [,openFrame]=await Promise.all([config.closed,config.open,config.turned,config.half].map(src=>new Promise<HTMLImageElement>((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=()=>reject(new Error('Opening image unavailable'));image.fetchPriority='high';image.src=src;})));
     if(cancelled||!mayPlay())return;
     clearTimeout(watchdog);
@@ -49,18 +50,21 @@ export function OpeningScene(){
     setArtSize({width:openFrame.naturalWidth,height:openFrame.naturalHeight});
     setViewport({width:innerWidth,height:innerHeight});setScene(config);setReady(true);
     ending=setTimeout(finish,OPENING_DURATION);
-   }catch{/* A failed or slow image never blocks the portfolio. */}
+   }catch{finish();/* A failed image releases the gate immediately. */}
    finally{clearTimeout(watchdog);}
   };
   void load();
   const onKey=(event:KeyboardEvent)=>{if(event.key==='Escape')finish();};
   const onMotion=()=>{if(reduced.matches||document.documentElement.dataset.motion==='off')finish();};
+  document.addEventListener('opening:skip',finish);
   window.addEventListener('keydown',onKey);reduced.addEventListener('change',onMotion);
   const observer=new MutationObserver(onMotion);observer.observe(document.documentElement,{attributes:true,attributeFilter:['data-motion']});
-  return()=>{finish();window.removeEventListener('keydown',onKey);reduced.removeEventListener('change',onMotion);observer.disconnect();};
+  return()=>{finish();document.removeEventListener('opening:skip',finish);window.removeEventListener('keydown',onKey);reduced.removeEventListener('change',onMotion);observer.disconnect();};
  },[pathname]);
  useLayoutEffect(()=>{
   if(!scene)return;
+  // Only hand off after the actual animation is mounted, before the next paint.
+  document.documentElement.dataset.opening='playing';
   const update=()=>setViewport({width:innerWidth,height:innerHeight});
   update();window.addEventListener('resize',update);
   return()=>window.removeEventListener('resize',update);
