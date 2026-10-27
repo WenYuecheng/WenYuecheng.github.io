@@ -284,9 +284,16 @@ def test_smtp_uses_verified_tls_and_safe_content(preview, monkeypatch, security)
         context = connection[3]['context'] if security == 'ssl' else next(call[1]['context'] for call in calls if call[0] == 'tls')
         assert context.check_hostname and context.verify_mode == module.ssl.CERT_REQUIRED
         message = next(call[1] for call in calls if call[0] == 'message')
-        assert message['To'] == 'faculty@school.edu' and message['From'] == 'sender@example.com'
-        assert 'mailbox ownership only' in message.get_content()
-        code = message.get_content().split(' is ')[1].split('.')[0]
+        assert message['To'] == 'faculty@school.edu' and message['From'].addresses[0].addr_spec == 'sender@example.com'
+        assert message.get_content_type() == 'multipart/alternative'
+        plain = message.get_body(preferencelist=('plain',)).get_content()
+        html = message.get_body(preferencelist=('html',)).get_content()
+        assert 'most recently requested code' in plain
+        import re
+        code = re.search(r'Your verification code: ([0-9]{6})', plain).group(1)
+        assert code in html and 'wenyuecheng.cn' in str(message['Subject'])
+        assert message['Date'] and message['Message-ID']
+        assert '<script' not in html and '<img' not in html
         assert code.isdigit() and len(code) == 6 and code not in response.text
         with sqlite3.connect(s.db_path) as db:
             stored = db.execute('SELECT code_hash FROM challenges').fetchone()[0]
@@ -322,3 +329,46 @@ def test_authorization_header_cors_and_no_privileged_input(preview):
 def test_mailbox_rejects_invalid_or_nonlocal_host(preview, host):
     with TestClient(create_app(preview), base_url='http://localhost', client=('127.0.0.1', 8000)) as c:
         assert c.get('/dev/mailbox?email=a@school.edu', headers={'Host': host}).status_code == 404
+
+
+def test_owner_can_sign_in_without_nickname_and_profile_link_requires_session(preview):
+    configured = replace(preview, admin_email='wyc041110@qq.com')
+    with TestClient(create_app(configured), base_url='http://localhost', client=('127.0.0.1', 8000)) as c:
+        assert c.get('/profile/links/github').status_code == 401
+        sent = c.post('/auth/request-code', json={'email': configured.admin_email}).json()
+        code = c.get('/dev/mailbox', params={'email': configured.admin_email}).json()['messages'][-1]['code']
+        response = c.post('/auth/verify', json={'challengeId': sent['challengeId'], 'code': code})
+        assert response.status_code == 200
+        session = response.json()
+        assert session['user']['role'] == 'admin'
+        assert session['user']['nickname'] == 'Yuecheng Wen'
+        headers = {'Authorization': 'Bearer ' + session['token']}
+        assert c.get('/admin/messages', headers=headers).status_code == 200
+        assert c.get('/profile/links/github', headers=headers).json() == {'url': 'https://github.com/WenYuecheng'}
+        assert c.get('/profile/links/github', headers={'Authorization': 'Bearer invalid'}).status_code == 401
+
+
+def test_existing_owner_session_has_canonical_name_without_reverification(preview):
+    configured = replace(preview, admin_email='owner@example.com')
+    with TestClient(create_app(configured), base_url='http://localhost', client=('127.0.0.1', 8000)) as c:
+        owner = login(c, email=configured.admin_email, nickname='A visitor')
+        with sqlite3.connect(configured.db_path) as db:
+            db.execute('UPDATE users SET nickname=? WHERE email=?', ('A visitor', configured.admin_email))
+            db.execute('INSERT INTO messages(id,name,message,created_at,user_id,status) VALUES (?,?,?,?,?,?)',
+                       ('owner-old', '\u6e29\u60a6\u6210', 'An older owner note.', '2026-10-27T00:00:00Z', owner['user']['id'], 'approved'))
+        response = c.get('/auth/me', headers={'Authorization': 'Bearer ' + owner['token']})
+        assert response.json()['user']['nickname'] == 'Yuecheng Wen'
+        assert c.get('/messages?page=1').json()['messages'][0]['name'] == 'Yuecheng Wen'
+        assert c.get('/messages/mine', headers={'Authorization': 'Bearer ' + owner['token']}).json()['messages'][0]['name'] == 'Yuecheng Wen'
+
+
+def test_verification_template_is_safe_and_has_matching_plain_text():
+    from mail_template import verification_content
+    plain, html = verification_content('001234', 0)
+    assert '001234' in plain and '001234' in html
+    assert '08:10' in plain and '08:10' in html
+    assert '10 分钟' in plain and '10 分钟' in html
+    assert '<script' not in html and 'src=' not in html
+    for value in ['12345', '<svg/>', '１２３４５６', '123456\n']:
+        with pytest.raises(ValueError):
+            verification_content(value, 0)

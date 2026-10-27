@@ -18,6 +18,9 @@ from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.message import EmailMessage
+from email.headerregistry import Address
+from email.utils import format_datetime, make_msgid
+from mail_template import verification_content
 from pathlib import Path
 from typing import Annotated
 
@@ -90,6 +93,13 @@ class PublicMessage(BaseModel):
 
 class MessageList(BaseModel):
     messages: list[PublicMessage]
+
+
+class MessagePage(MessageList):
+    page: int | None = None
+    pageSize: int | None = None
+    total: int | None = None
+    totalPages: int | None = None
 
 
 class Health(BaseModel):
@@ -228,6 +238,7 @@ def initialize(settings: Settings) -> bytes:
                 kind TEXT NOT NULL, peer_key TEXT NOT NULL, subject_key TEXT NOT NULL, created_at REAL NOT NULL
             );
             CREATE INDEX IF NOT EXISTS event_limits ON events(kind, created_at);
+            CREATE INDEX IF NOT EXISTS public_message_pages ON messages(status, created_at);
             CREATE TABLE IF NOT EXISTS review_audit (
                 id INTEGER PRIMARY KEY, message_id TEXT NOT NULL, actor_id TEXT NOT NULL,
                 reviewed_at TEXT NOT NULL, from_status TEXT NOT NULL, to_status TEXT NOT NULL
@@ -346,11 +357,14 @@ def deliver_code(settings: Settings, email: str, code: str, timestamp: float) ->
     if not settings.smtp_host or not settings.smtp_from:
         raise OSError('Mail is not configured.')
     message = EmailMessage()
-    message['Subject'] = 'Your portfolio sign-in code'
-    message['From'] = normalize_email(settings.smtp_from)
+    message['Subject'] = 'wenyuecheng.cn · 登录验证码 / Sign-in code'
+    message['From'] = Address(display_name='Yuecheng Wen · wenyuecheng.cn', addr_spec=normalize_email(settings.smtp_from))
     message['To'] = email
-    message.set_content(f'Your sign-in code is {code}. It expires in 10 minutes.\n'
-                        'This verifies mailbox ownership only. If you did not request it, ignore this email.\n')
+    message['Date'] = format_datetime(datetime.fromtimestamp(timestamp, timezone.utc))
+    message['Message-ID'] = make_msgid(domain='wenyuecheng.cn')
+    plain, html = verification_content(code, timestamp)
+    message.set_content(plain, cte='quoted-printable')
+    message.add_alternative(html, subtype='html', cte='quoted-printable')
     context = ssl.create_default_context()
     if settings.smtp_security == 'ssl':
         smtp = smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=8, context=context)
@@ -433,7 +447,7 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
         return JSONResponse({'error': 'Guestbook is temporarily unavailable.'}, status_code=503)
 
     def user_view(row) -> dict:
-        return {'id': row['id'], 'nickname': row['nickname'], 'email': row['email'],
+        return {'id': row['id'], 'nickname': 'Yuecheng Wen' if row['email'] == admin_email else row['nickname'], 'email': row['email'],
                 'role': 'admin' if row['email'] == admin_email else 'user'}
 
     def authenticated(request: Request) -> dict:
@@ -522,7 +536,7 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
             if not hmac.compare_digest(actual, row['code_hash']):
                 return JSONResponse({'error': 'Code is invalid or expired.'}, status_code=400)
             db.execute('UPDATE challenges SET invalidated=1 WHERE id=?', (row['id'],))
-            db.execute('INSERT OR IGNORE INTO users VALUES (?, ?, ?)', (uuid.uuid4().hex, row['email'], payload.nickname or 'A visitor'))
+            db.execute('INSERT OR IGNORE INTO users VALUES (?, ?, ?)', (uuid.uuid4().hex, row['email'], 'Yuecheng Wen' if row['email'] == admin_email else payload.nickname or 'A visitor'))
             user = db.execute('SELECT * FROM users WHERE email=?', (row['email'],)).fetchone()
             token = secrets.token_urlsafe(32)
             db.execute('DELETE FROM sessions WHERE expires_at<=?', (timestamp,))
@@ -563,7 +577,8 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
             return {'messages': [{k: row[k] for k in ('email', 'code', 'createdAt')} for row in rows if row['email'] == email]}
 
     def message_view(row, private: bool = False, admin: bool = False) -> dict:
-        item = {'id': row['id'], 'name': row['name'], 'message': row['message'], 'createdAt': row['created_at']}
+        owner = 'email' in row.keys() and row['email'] == admin_email
+        item = {'id': row['id'], 'name': 'Yuecheng Wen' if owner else row['name'], 'message': row['message'], 'createdAt': row['created_at']}
         if private:
             item['status'] = row['status']
         if admin:
@@ -572,11 +587,22 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
                 item['reviewedAt'] = row['reviewed_at']
         return item
 
-    @app.get('/messages', response_model=MessageList)
-    def list_messages() -> dict:
+    @app.get('/messages', response_model=MessagePage, response_model_exclude_none=True)
+    def list_messages(page: Annotated[int | None, Query(ge=1, le=100000)] = None,
+                      page_size: Annotated[int, Query(alias='pageSize', ge=1, le=24)] = 12) -> dict:
         with connect(settings.db_path) as db:
-            rows = db.execute("SELECT * FROM messages WHERE status='approved' ORDER BY created_at DESC, rowid DESC LIMIT 60").fetchall()
-        return {'messages': [message_view(row) for row in rows]}
+            db.execute('BEGIN')
+            # Keep old clients compatible; the new website always requests explicit pages.
+            total = db.execute("SELECT count(*) FROM messages WHERE status='approved'").fetchone()[0]
+            pages = max(1, math.ceil(total / page_size))
+            current = min(page, pages) if page is not None else 1
+            limit = page_size if page is not None else 60
+            rows = db.execute("SELECT messages.*,users.email FROM messages LEFT JOIN users ON users.id=messages.user_id WHERE status='approved' ORDER BY messages.created_at DESC,messages.rowid DESC LIMIT ? OFFSET ?",
+                              (limit, (current - 1) * page_size)).fetchall()
+        result = {'messages': [message_view(row) for row in rows]}
+        if page is not None:
+            result.update(page=current, pageSize=page_size, total=total, totalPages=pages)
+        return result
 
     @app.post('/messages', status_code=201)
     def create_message(payload: MessageInput, request: Request, session: CurrentUser):
@@ -600,7 +626,7 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
     @app.get('/messages/mine')
     def mine(session: CurrentUser) -> dict:
         with connect(settings.db_path) as db:
-            rows = db.execute('SELECT * FROM messages WHERE user_id=? ORDER BY created_at DESC, rowid DESC LIMIT 60', (session['user']['id'],)).fetchall()
+            rows = db.execute('SELECT messages.*,users.email FROM messages LEFT JOIN users ON users.id=messages.user_id WHERE messages.user_id=? ORDER BY messages.created_at DESC,messages.rowid DESC LIMIT 60', (session['user']['id'],)).fetchall()
         return {'messages': [message_view(row, private=True) for row in rows]}
 
     @app.get('/admin/messages')
@@ -622,6 +648,10 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
             db.execute('UPDATE messages SET status=?,reviewed_at=? WHERE id=?', (payload.decision, reviewed_at, message_id))
             updated = db.execute('SELECT messages.*,users.email FROM messages LEFT JOIN users ON users.id=messages.user_id WHERE messages.id=?', (message_id,)).fetchone()
         return message_view(updated, private=True, admin=True)
+
+    @app.get('/profile/links/github')
+    def github_profile(_session: CurrentUser) -> dict:
+        return {'url': 'https://github.com/WenYuecheng'}
 
     @app.get('/projects/{slug}/links/{key}')
     def project_link(slug: str, key: str, _session: CurrentUser) -> dict:

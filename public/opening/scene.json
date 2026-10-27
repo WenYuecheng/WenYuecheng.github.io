@@ -1,0 +1,11 @@
+{
+  "enabled": true,
+  "closed": "/images/opening/elf-side-closed.webp",
+  "open": "/images/opening/elf-side-open.webp",
+  "turned": "/images/opening/elf-turn-closed.webp",
+  "half": "/images/opening/elf-side-half.webp",
+  "focusX": 87,
+  "focusY": 44,
+  "eyeX": 84.5,
+  "eyeY": 39.2
+}

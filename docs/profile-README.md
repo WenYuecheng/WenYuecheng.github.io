@@ -4,7 +4,7 @@
   </a>
 </p>
 
-# Hi, I’m Yuecheng Wen · 温悦成
+# Hi, I’m Yuecheng Wen
 
 **Computer Science undergraduate at Sichuan University · Admitted to CUHK MSc in Computer Science, September 2027 intake**
 
@@ -12,7 +12,7 @@ I’m interested in **agents, recursive self-improvement (RSI), and parameter-ef
 
 关注 **Agent、递归自我改进（RSI）与参数高效微调（PEFT）**，构建能够持续改进、可靠执行的智能体系统。以可验证的技能更新、上下文治理、检索增强和模型对齐为具体切入点。
 
-## Two projects I’m building
+## Projects I’m building
 
 | Project | Focus | Explore |
 | --- | --- | --- |
@@ -27,9 +27,8 @@ Project pages include architecture, implementation, technical notes and experime
 
 - **The Chinese University of Hong Kong / 香港中文大学** — Admitted to **MSc in Computer Science**, starting **September 2027 / 2027 年 9 月**.
 - **Sichuan University / 四川大学** — B.Eng. candidate in Computer Science and Technology, **2023–2027 (expected)**.
-- GPA **3.85/4.00** · Weighted average **91.01/100** · Cohort rank **26/320** · IELTS **7.0**.
+- GPA **3.85/4.00** · Weighted average **91.01/100** · Class rank **top 8%** · IELTS **7.0**.
 - Selected courses: Algorithms **98**, Data Structures **94**, Calculus **95**, Linear Algebra **93**, Operating Systems **95**, Computer Networks **98**.
-- Recognition: SCU First-Class Individual Scholarship (2025.12); Mathematics Competition Provincial Second Prize (2024.12); SCU Third-Class Scholarship (2024.12); Mathematical Modeling Provincial Third Prize (2024.09).
 
 ## Working with
 

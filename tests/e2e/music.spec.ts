@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+test.beforeEach(async({page})=>{await page.route('**/opening/scene.json',r=>r.fulfill({json:{enabled:false}}));});
 test.use({launchOptions:{args:['--autoplay-policy=no-user-gesture-required']}});
 const src='/music/cant-give-up.mp3';
 async function navigate(page:import('@playwright/test').Page,name:string,mobile:boolean) {

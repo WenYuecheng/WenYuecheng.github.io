@@ -1,0 +1,20 @@
+# Optional elf opening
+
+The opening is enabled with an original blue-haired elf close-up inspired by the owner’s composition reference: personal website lettering on the left and the elf’s pointed ear / blue eye on the right. Rejected frontal concepts have not been added to the website. The opening contains the website domain, owner’s name and welcome copy only; it deliberately omits Agent / RSI / PEFT labels.
+
+The matched pose frames are stored in `public/images/opening/`:
+
+- `elf-turn-closed.webp`: a slightly lowered, turned-away head with the visible eye fully closed.
+- `elf-side-closed.webp`: the side-profile character with the visible eye closed.
+- `elf-side-half.webp`: the same settled pose with the eyelid naturally half raised.
+- `elf-side-open.webp`: exactly the same crop, lighting and pose, with the blue eye open.
+
+Use high-resolution landscape artwork with enough space for a mobile center crop. The opening blends the turned-away and settled closed-eye poses before transitioning through the half-open eyelid frame to the awake frame. A slight perspective rotation, slow camera push, subtle breathing transform and feather-masked hair layer add lightweight 2.5D motion. The character's head pose changes; the dark left starfield stays anchored. This is layered animation of matching illustrations, rather than a generated video or a fully rigged character. The extra two poses were created with the built-in image generation tool; original PNGs remain in `artwork/originals/opening/`.
+
+Edit `public/opening/scene.json`, toggle `enabled`, and adjust `focusX` / `focusY` (percentages) for the face's crop anchor. Optional `turned` and `half` paths select the extra poses; older configurations fall back to the closed frame. Every image path must remain inside the site's local opening artwork directory. `eyeX` / `eyeY` locate the iris as percentages of the original artwork (currently 84.5%, 39.2%). The site uses the decoded open image dimensions and the exact `object-fit: cover` / object-position geometry to project this point onto the viewport, recalculating on resize. The camera and breathing scale around this same iris so it stays aligned with the light. This local JSON and the images are independently replaceable static assets. No API key or external image service is used at runtime.
+
+After all configured frames decode, the opening runs for 7.2 seconds. A low rim light makes the CLOSED eyelid and turning head visible during the first second. The head settles by about 2.3 seconds and stays closed until about 3.2 seconds. The eyelid then passes through a dedicated half-open pose before becoming fully open around 4.4 seconds. Blue eye glow begins only after the eyelid has started lifting, around 3.8 seconds. A feathered radial mask expands outward from that iris; the low ambient outline does not dim again as the eye brightens. The scene then holds briefly and fades into the live homepage. All full-scene timing reads the same duration constant. There is no centered white flash. The homepage loads underneath. Skip or Escape ends it immediately. It plays on every full load or refresh of the English/Chinese homepage, while client-side page changes within that document do not replay it; reduced motion or the site's motion-off preference bypasses it. Missing, invalid or slow assets leave the homepage accessible. Navigation away cancels the animation and restores focus/scroll/input access.
+
+All publication remains on hold until the owner approves the local result.
+
+The default entry is the English root `/`; Chinese remains explicitly available at `/zh/`. Refresh either home URL to replay. The existing `?intro=preview` local-review link remains valid, but a query parameter is no longer needed to replay. Motion-off and reduced-motion preferences still take precedence.

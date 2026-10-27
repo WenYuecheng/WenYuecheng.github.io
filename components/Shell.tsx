@@ -6,27 +6,34 @@ import { ArrowUpRight, Check, ChevronUp, Menu, Moon, Music2, Pause, Play, Sparkl
 import { content, music, routeFor, site, type Locale } from '../data/site';
 import { Atmosphere } from './Atmosphere';
 import { AccountNav } from './AccountPages';
+import { OpeningScene } from './OpeningScene';
+import { RouteScenery } from './RouteScenery';
+import { ClickEffect } from './ClickEffect';
+import { VerifiedGitHubLink } from './VerifiedGitHubLink';
+import { Companion } from './Companion';
 
 function readPreference(key:string) { try { return localStorage.getItem(key); } catch { return null; } }
 function savePreference(key:string,value:string) { try { localStorage.setItem(key,value); } catch { /* Private browsing still gets a functioning page. */ } }
 export function Shell({children}:{children:ReactNode}) {
  const pathname=usePathname(); const locale:Locale=pathname.startsWith('/zh')?'zh':'en'; const t=content[locale];
  const [dark,setDark]=useState(false),[motion,setMotion]=useState(true),[menu,setMenu]=useState(false);
- const [speech,setSpeech]=useState(''); const speechTimer=useRef<ReturnType<typeof setTimeout>|null>(null); const catCount=useRef(0);
  useEffect(()=>{setDark(readPreference('yuecheng-theme')==='dark');setMotion(readPreference('yuecheng-motion')!=='off');},[]);
  useEffect(()=>{document.documentElement.classList.toggle('dark',dark);},[dark]);
  useEffect(()=>{document.documentElement.dataset.motion=motion?'on':'off';},[motion]);
- useEffect(()=>{ document.documentElement.lang=locale==='zh'?'zh-CN':'en';setMenu(false);setSpeech(''); },[locale,pathname]);
- useEffect(()=>()=>{if(speechTimer.current)clearTimeout(speechTimer.current);},[]);
+ useEffect(()=>{ document.documentElement.lang=locale==='zh'?'zh-CN':'en';setMenu(false); },[locale,pathname]);
  useEffect(()=>{if(!menu)return;const key=(e:KeyboardEvent)=>{if(e.key==='Escape')setMenu(false);};window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key);},[menu]);
  const links=[{key:'home' as const,path:'/'},{key:'projects' as const,path:'/projects/'},{key:'wall' as const,path:'/guestbook/'},{key:'contact' as const,path:'/contact/'}];
  const normalized=pathname.replace(/^\/zh(?=\/|$)/,'')||'/';
  return <>
+  <OpeningScene/>
+  <ClickEffect/>
+  <div className="site-experience">
+  <RouteScenery/>
   <a className="skip-link" href="#main">{t.skip}</a>
   <div className="ambient-paper" aria-hidden="true" />
   <Atmosphere />
   <header className="site-header"><div className="nav-inner">
-   <Link href={routeFor(locale)} className="wordmark"><span className="wordmark-orbit">✦</span><span>Yuecheng<span className="wordmark-dot">.</span></span><small>{t.tagline}</small></Link>
+   <Link href={routeFor(locale)} className="wordmark"><span className="wordmark-orbit">✦</span><span>{site.name}<span className="wordmark-dot">.</span></span><small>{t.tagline}</small></Link>
    <nav className={`main-nav ${menu?'is-open':''}`} aria-label={locale==='zh'?'主导航':'Main navigation'}>{links.map(({key,path})=><Link key={key} href={routeFor(locale,path)} onClick={()=>setMenu(false)} className={path==='/'?normalized==='/'?'active':'':normalized.startsWith(path)?'active':''} aria-current={(path==='/'?normalized==='/':normalized.startsWith(path))?'page':undefined}>{t.nav[key]}</Link>)}</nav>
    <div className="nav-tools"><AccountNav locale={locale}/><Link className="language-control" href={routeFor(locale==='en'?'zh':'en',pathname)} hrefLang={locale==='en'?'zh-CN':'en'}>{t.controls.language}</Link><span className="tool-divider" />
     <button className="icon-button" title={t.controls.motion} aria-label={t.controls.motion} aria-pressed={motion} onClick={()=>{savePreference('yuecheng-motion',motion?'off':'on');setMotion(!motion);}}><Sparkles size={17}/></button>
@@ -35,9 +42,10 @@ export function Shell({children}:{children:ReactNode}) {
    </div>
   </div></header>
   {children}
-  <footer className="site-footer"><div className="footer-star">✦</div><p>{t.footer}</p><div className="footer-links"><Link href={routeFor(locale,'/projects/')}>{t.nav.projects}</Link><Link href={routeFor(locale,'/contact/')}>{t.nav.contact}</Link><Link href={routeFor(locale,'/guestbook/')}>{locale==='zh'?'留言墙':'Message wall'}</Link><a href={site.github} target="_blank" rel="noreferrer">GitHub <ArrowUpRight size={12}/></a></div><small>© {new Date().getFullYear()} {t.rights}<span> · </span><a href="https://github.com/heiehiehi/XinghuisamaBlogs" target="_blank" rel="noreferrer">{t.source}</a></small></footer>
+  <footer className="site-footer"><div className="footer-star">✦</div><p>{t.footer}</p><div className="footer-links"><Link href={routeFor(locale,'/projects/')}>{t.nav.projects}</Link><Link href={routeFor(locale,'/contact/')}>{t.nav.contact}</Link><Link href={routeFor(locale,'/guestbook/')}>{locale==='zh'?'留言墙':'Message wall'}</Link><VerifiedGitHubLink locale={locale}>GitHub <ArrowUpRight size={12}/></VerifiedGitHubLink></div><small>© {new Date().getFullYear()} {t.rights}</small></footer>
   <BackgroundMusic locale={locale}/>
-  <div className="little-companion">{speech&&<p role="status">{speech}</p>}<button aria-label={t.controls.mascot} className="cat-button" onClick={()=>{setSpeech(t.controls.cat[catCount.current++%t.controls.cat.length]);if(speechTimer.current)clearTimeout(speechTimer.current);speechTimer.current=setTimeout(()=>setSpeech(''),4500);}}><span className="cat-tail"/><span className="cat-body"/><span className="cat-head"><i/><i/><b>ω</b></span><span className="cat-paw"/></button></div>
+  <Companion locale={locale}/>
+  </div>
  </>;
 }
 export function BackgroundMusic({locale}:{locale:Locale}) {

@@ -104,3 +104,25 @@ Original built-in image generation: cinematic anime garden observatory/conservat
 
 ## Runtime covers
 User-provided actual Weyra terminal and SolaceAI login screenshots retained unchanged at `artwork/originals/runtime/{weyra,solaceai}.png`, optimized for website use at `public/images/runtime/{weyra,solaceai}.webp`. Original project anime illustrations remain as the corresponding project detail backgrounds.
+
+
+## Personal opening · 2026-10-27
+
+Built-in `imagegen` generation + matched edit, original assets saved in `artwork/originals/opening/elf-side-{open,closed}.png`; optimized local website files are `public/images/opening/elf-side-{open,closed}.webp`. The supplied screenshot was a mood/composition reference only; all lettering is live HTML. No reference logo, character, play icon or other UI is embedded in the generated illustration.
+
+Generation prompt: Original adult fantasy elf, polished stylized anime/game cinematic illustration, right-half extreme three-quarter profile close-up with blue-silver hair, distinct long pointed ear and one luminous sapphire eye. Dark navy left half left empty for typography. Delicate silver floral ornament, cool rim lighting and sparse cyan particles. No text, logo, UI, watermark or recognizable franchise character.
+
+Matched edit prompt: Close only the visible eye naturally, retaining exact face position, hair, ear, ornament, clothing, background, lighting and crop for a seamless crossfade into the open-eye original.
+
+
+## After the envelope · 2026-10-27
+
+Built-in imagegen; master `artwork/originals/letter-garden.png`, web asset `public/images/generated/letter-garden.webp`. Original anime panorama of a sunlit reading terrace, flowering arch, open cream envelope and blank drifting pages above a mountain valley; warm apricot, blush, jade and lavender, no people or text. Calm central space reserved for translucent content. This independently configured scene continues beneath the homepage after its hero/envelope. Animated image drift, breathing light and motes are implemented in CSS; no external video or image API is used at runtime.
+# Opening pose refinements · 2026-10-27
+
+Tool: built-in `image_gen`, opaque original artwork, no runtime image-generation service.
+
+- **Closed-eye head turn**: reference `artwork/originals/opening/elf-side-closed.png`; saved master `artwork/originals/opening/elf-turn-closed.png`, static derivative `public/images/opening/elf-turn-closed.webp`. Prompt: preserve the same adult silver-blue-haired elf, pointed ear, crystalline flower/earring, dark left starfield, lighting, framing and 3:2 composition; turn only the head a small 10–12 degrees farther toward screen-right with a subtly lowered chin; keep the visible eye fully closed with a clear natural eyelash line, the shoulder/body and left environment fixed; no iris/glow, new props, text, motion blur, doubled face or watermark.
+- **Half-open eyelid**: references the existing closed and open masters; saved master `artwork/originals/opening/elf-side-half.png`, static derivative `public/images/opening/elf-side-half.webp`. Prompt: one matching intermediate frame; same exact settled pose, framing, character identity and environment; visible eye naturally half open with the upper lid occluding the upper half of the sapphire iris, a narrow almond-shaped aperture and one coherent upper lash/lower lid; preserve everything outside the eye; no duplicate closed lash line, black cutout, external glow, lighting change, text or collage.
+
+Both refinements were inspected as local artwork and used only for the local opening animation, which remains pending publication approval.

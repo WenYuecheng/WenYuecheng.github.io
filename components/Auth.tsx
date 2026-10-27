@@ -14,7 +14,7 @@ export function accountError(error:unknown,locale:Locale){
  if(status===422)return zh?'请检查邮箱、验证码或输入长度。支持 edu 教育邮箱，站主使用专用管理员邮箱。':'Check your email, code and input lengths. Use an edu education email, or the configured owner email.';
  return zh?'暂时无法完成请求，请稍后重试，已填写的内容会保留。':'The request could not be completed. Please retry; your draft is retained.';
 }
-type AuthState={user:Account|null;loading:boolean;unavailable:boolean;api:<T>(path:string,options?:Options)=>Promise<T>;signIn:(challengeId:string,code:string,nickname:string)=>Promise<void>;logout:()=>Promise<void>;refresh:()=>Promise<void>};
+type AuthState={user:Account|null;loading:boolean;unavailable:boolean;api:<T>(path:string,options?:Options)=>Promise<T>;signIn:(challengeId:string,code:string,nickname:string)=>Promise<Account>;logout:()=>Promise<void>;refresh:()=>Promise<void>};
 const Context=createContext<AuthState|null>(null);
 const key='yuecheng-account-session';
 const validUser=(u:Account)=>u&&typeof u.id==='string'&&typeof u.nickname==='string'&&typeof u.email==='string'&&['user','admin'].includes(u.role);
@@ -54,6 +54,7 @@ export function AuthProvider({children}:{children:ReactNode}){
   if(!validUser(data.user)||typeof data.token!=='string'||!/^[A-Za-z0-9_-]{40,256}$/.test(data.token)||!(Date.parse(data.expiresAt)>Date.now()))throw new ApiError(503);
   token.current=data.token;expiry.current=data.expiresAt;setUser(data.user);setExpiresAt(data.expiresAt);setUnavailable(false);setLoading(false);
   try{sessionStorage.setItem(key,JSON.stringify({token:data.token,expiresAt:data.expiresAt}));}catch{/* This visit still works in memory. */}
+  return data.user;
  };
  const logout=async()=>{try{if(token.current)await api('/auth/logout',{method:'POST',body:{},authenticated:true});}finally{clear();setUnavailable(false);}};
  return <Context.Provider value={{user,loading,unavailable,api,signIn,logout,refresh}}>{children}</Context.Provider>;
