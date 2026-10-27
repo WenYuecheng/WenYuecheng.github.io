@@ -41,4 +41,4 @@ Project pages include architecture, implementation, technical notes and experime
 
 Happy to exchange ideas about agents, skill evolution, context engineering and model adaptation. 欢迎交流相关技术问题与合作想法。
 
-<sub>Original illustration created for this portfolio. 保持好奇，把想象慢慢变成现实。</sub>
+<sub>Original illustration created for this portfolio. 道阻且长，行则将至。</sub>

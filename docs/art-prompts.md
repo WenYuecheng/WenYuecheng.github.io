@@ -97,3 +97,10 @@ Style: exquisite hand-painted Japanese animation environment, fine delicate line
 Palette and mood: pastel cherry blossom pink, soft cream, sage green, lavender-blue shadows, pale blue spring sky, warm gold slanted afternoon light. Thoughtful, serene, quietly optimistic, nostalgic but fresh, detailed yet soft.
 Constraints: no text, letters, numbers, signage, readable emblems, logos, watermark, people, faces, characters, UI, website mockup or borders.
 ```
+
+## Message garden — moderated wall
+Master: `artwork/originals/message-garden.png`. Published derivative: `public/images/generated/message-garden.webp`.
+Original built-in image generation: cinematic anime garden observatory/conservatory at blue-hour dusk, cream/apricot/lavender, cherry blossoms framing the view, warm lanterns and tiny golden fireflies, quiet central terrace for glass UI cards, wooden desk with envelopes at left and wishes tree with blank paper tags at right. No text, people, logos or known characters. CSS adds subtle scene drift and floating lights; the bitmap is static.
+
+## Runtime covers
+User-provided actual Weyra terminal and SolaceAI login screenshots retained unchanged at `artwork/originals/runtime/{weyra,solaceai}.png`, optimized for website use at `public/images/runtime/{weyra,solaceai}.webp`. Original project anime illustrations remain as the corresponding project detail backgrounds.

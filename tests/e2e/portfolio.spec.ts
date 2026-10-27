@@ -23,23 +23,23 @@ test('project list, walkthrough, notes and verified external links',async({page}
  await expect(page.getByRole('heading',{name:'Weyra',exact:true})).toBeVisible();
  await page.getByRole('button',{name:'2 技能定位',exact:true}).click();await expect(page.locator('.flow-description')).toContainText('歧义时弃权');
  await expect(page.locator('.project-note')).toHaveCount(2);
- await expect(page.locator('#links a').first()).toHaveAttribute('href','https://github.com/WenYuecheng/Weyra');
+ await expect(page.locator('#links button').first()).toContainText('GitHub');
+ await expect(page.locator('#links')).toContainText('登录后访问');
+ await expect(page.locator('.project-detail')).toHaveCSS('background-image',/weyra-cover/);
  await page.screenshot({path:`test-results/weyra-${info.project.name}.png`,fullPage:true});
  await page.getByRole('link',{name:'English',exact:true}).click();await expect(page).toHaveURL('/projects/weyra/');
- await page.goto('/zh/projects/solaceai/');await expect(page.locator('#links a').first()).toHaveAttribute('href','https://solaceai.wenyuecheng.cn');
+ await page.goto('/zh/projects/solaceai/');await expect(page.locator('#links button').first()).toContainText('在线体验');
+ await expect(page.locator('.project-detail')).toHaveCSS('background-image',/solaceai-cover/);
  await expect(page.locator('#evidence')).toContainText('399 / 400');
 });
-test('contact and safe guestbook publication',async({page},info)=>{
- await page.route(`${api}/messages`,async route=>{if(route.request().method()==='POST'){const payload=route.request().postDataJSON();expect(payload.message).toBe('<img src=x onerror=alert(1)>');await route.fulfill({status:201,json:{id:'note-2',name:payload.name,message:payload.message,createdAt:'2026-10-26T10:00:00Z'}});}else await route.fulfill({json:{messages:[{id:'note-1',name:'A visitor',message:'A thoughtful little corner.',createdAt:'2026-10-26T09:00:00Z'}]}});});
+test('contact leads to a public approved-only wall with sign-in entry',async({page},info)=>{
+ await page.route(`${api}/messages`,route=>route.fulfill({json:{messages:[{id:'note-1',name:'A visitor',message:'A thoughtful little corner.',createdAt:'2026-10-26T09:00:00Z'}]}}));
  await page.goto('/zh/contact/');await expect(page.locator('.email-address')).toHaveAttribute('href','mailto:15698557180@163.com');
  await page.screenshot({path:`test-results/contact-${info.project.name}.png`,fullPage:true});
  await page.locator('.guestbook-invitation').click();await expect(page).toHaveURL('/zh/guestbook/');
  await expect(page.getByText('A thoughtful little corner.')).toBeVisible();
- await page.getByLabel('你的名字（可选）').fill('Tester');await page.getByLabel('有什么想说的话？').fill('<img src=x onerror=alert(1)>');
- await page.getByRole('button',{name:'把纸条贴上去'}).click();
- await expect(page.getByText('纸条已经贴好，谢谢你的留言！')).toBeVisible();
- await expect(page.locator('.pinned-note').first()).toContainText('<img src=x onerror=alert(1)>');
- await expect(page.locator('.pinned-note img')).toHaveCount(0);
+ await expect(page.getByRole('link',{name:'登录 / 注册后留言'})).toBeVisible();
+ await expect(page.locator('textarea')).toHaveCount(0);
  await page.screenshot({path:`test-results/guestbook-${info.project.name}.png`,fullPage:true});
 });
 test('selected music, navigation and small cat work',async({page},info)=>{

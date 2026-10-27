@@ -39,3 +39,6 @@ Use imagegen skill for a single original anime wall scene: warm cream/lavender g
 
 ## Task 4: Review and local handoff
 Independent spec/security review before release, fix important findings and regressions, meaningful backend and browser checks, desktop/mobile screenshots. Restart only local dev API with ignored test database/outbox/env configuredadmin (user's specified address); preserve previouslocal DB backup before migration. Production mail secrets not used for local smoke, all OTP delivery local only. Document SMTP integration readiness/limitations and owner moderation workflow. No push, server command, public Caddy/static/Pages/profile modification. Keep preview4321+API8093 running; user must explicitly approve later publication.
+
+## User follow-up — 2026-10-27
+Unify the small motivational/decorative tagline instances as “道阻且长，行则将至” (with an English equivalent), preserving the explicitly requested hero poem and personal quotations. Education and awards now share the original profile-garden illustration as one continuous section backdrop; remove the former separate bottom image strip. Publication hold continues.

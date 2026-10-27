@@ -1,94 +1,80 @@
-import { test, expect } from '@playwright/test';
-const api='https://wenyuecheng.cn/api/portal/messages';
-const note={id:'saved-note',name:'Tester',message:'Keep this saved note.',createdAt:'2026-10-26T10:00:00Z'};
-
-for(const outcome of ['stale snapshot','failure'] as const){
- test(`saved note survives a delayed initial GET ${outcome}`,async({page})=>{
-  let release!:()=>void;const pending=new Promise<void>(resolve=>{release=resolve;});
-  let started!:()=>void;const requested=new Promise<void>(resolve=>{started=resolve;});
-  await page.route(api,async route=>{
-   if(route.request().method()==='POST')return route.fulfill({status:201,json:note});
-   started();await pending;
-   return outcome==='failure'?route.fulfill({status:503,json:{error:'unavailable'}}):route.fulfill({json:{messages:[{...note,id:'old-note',message:'An older note.'}]}});
-  });
-  await page.goto('/guestbook/');await requested;
-  await page.getByLabel('What would you like to say?').fill(note.message);
-  await page.getByRole('button',{name:'Pin my note',exact:true}).click();
-  await expect(page.getByText('Your note is on the wall. Thank you!')).toBeVisible();
-  await expect(page.locator('.pinned-note').filter({hasText:note.message})).toHaveCount(1);
-  await expect(page.getByText('Opening the notebook…')).toHaveCount(0);
-  const response=page.waitForResponse(r=>r.url()===api&&r.request().method()==='GET');release();await response;
-  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
-  if(outcome==='stale snapshot')await expect(page.getByText('An older note.')).toBeVisible();
-  await expect(page.locator('.pinned-note').filter({hasText:note.message})).toHaveCount(1);
-  await expect(page.getByText('Notes are unavailable right now. You can still reach me by email.')).toHaveCount(0);
- });
+import {test,expect,type Page} from '@playwright/test';
+const base='https://wenyuecheng.cn/api/portal',token='t'.repeat(43),expiresAt=new Date(Date.now()+3600_000).toISOString();
+const user={id:'user-1',nickname:'Test student',email:'visitor@university.edu.cn',role:'user'};
+const note={id:'note-1',name:user.nickname,message:'A note for the owner.',createdAt:'2026-10-26T10:00:00Z',status:'pending'};
+async function signed(page:Page,role='user'){
+ await page.addInitScript(({token,expiresAt})=>sessionStorage.setItem('yuecheng-account-session',JSON.stringify({token,expiresAt})),{token,expiresAt});
+ await page.route(`${base}/auth/me`,route=>route.fulfill({json:{user:{...user,role},expiresAt}}));
 }
-
-test('stalled GET offers retry and recovers',async({page})=>{
- await page.clock.install();let getCount=0;
- await page.route(api,async route=>{getCount++;if(getCount===1)return;await route.fulfill({json:{messages:[note]}});});
- await page.goto('/guestbook/');await expect(page.getByText('Opening the notebook…')).toBeVisible();
- await page.clock.fastForward(10001);
- await expect(page.getByRole('button',{name:'Retry loading notes',exact:true})).toBeVisible();
- await page.getByRole('button',{name:'Retry loading notes',exact:true}).click();
- await expect(page.getByText(note.message,{exact:true})).toBeVisible();
-});
-
-test('stalled POST restores submit and retains the draft',async({page})=>{
- await page.clock.install();let posts=0;
- await page.route(api,async route=>{if(route.request().method()==='GET')return route.fulfill({json:{messages:[]}});posts++;if(posts===1)return;await route.fulfill({status:201,json:note});});
- await page.goto('/guestbook/');await expect(page.getByText('A quiet corner, waiting for the first hello.')).toBeVisible();
- await page.getByLabel('Your name (optional)').fill('Tester');await page.getByLabel('What would you like to say?').fill(note.message);
- await page.getByRole('button',{name:'Pin my note',exact:true}).click();await expect(page.getByRole('button',{name:'Pinning…'})).toBeDisabled();
- await page.clock.fastForward(10001);
- await expect(page.getByText(/request timed out/i)).toBeVisible();
- await expect(page.getByLabel('What would you like to say?')).toHaveValue(note.message);
- await expect(page.getByLabel('Your name (optional)')).toHaveValue('Tester');
- await page.getByRole('button',{name:'Pin my note',exact:true}).click();
- await expect(page.getByText('Your note is on the wall. Thank you!')).toBeVisible();
- await expect(page.getByLabel('What would you like to say?')).toHaveValue('');
-});
-
-test('no-JavaScript guestbook explains disabled controls',async({browser})=>{
- const context=await browser.newContext({javaScriptEnabled:false});const page=await context.newPage();
- await page.goto('http://127.0.0.1:4321/guestbook/');
- await expect(page.locator('.no-script-note')).toHaveText('Enable JavaScript to load and send notes. You can also reach me by email.');
- await expect(page.locator('.no-script-note')).toBeVisible();
- await expect(page.getByLabel('Your name (optional)')).toBeDisabled();
- await expect(page.getByLabel('What would you like to say?')).toBeDisabled();
- await expect(page.getByRole('button',{name:'Pin my note',exact:true})).toBeDisabled();
- expect(new URL(page.url()).search).toBe('');await context.close();
-});
-
-test('reload replaces the oldest note on a full wall after uncertain POST',async({page})=>{
- await page.clock.install();let loads=0;
- const previous=Array.from({length:60},(_,index)=>({id:`existing-${index}`,name:'A visitor',message:`Existing note ${index}`,createdAt:new Date(Date.UTC(2026,9,26,0,59-index)).toISOString()}));
- const fresh={id:'newer-note',name:'Tester',message:'This newer note was saved during the timeout.',createdAt:'2026-10-27T00:00:00Z'};
- await page.route(api,async route=>{
-  if(route.request().method()==='POST')return;
-  loads++;await route.fulfill({json:{messages:loads===1?previous:[fresh,...previous,{...fresh}]}});
+test('submitted notes stay private and show pending status to the author',async({page})=>{
+ await signed(page);let submitted=false;
+ await page.route(`${base}/messages`,async route=>{
+  if(route.request().method()==='POST'){expect(route.request().headers().authorization).toBe(`Bearer ${token}`);submitted=true;await route.fulfill({status:201,json:{...note,message:route.request().postDataJSON().message}});}
+  else await route.fulfill({json:{messages:[]}});
  });
- await page.goto('/guestbook/');await expect(page.locator('.pinned-note')).toHaveCount(60);
- await page.getByLabel('What would you like to say?').fill(fresh.message);
- await page.getByRole('button',{name:'Pin my note',exact:true}).click();await expect(page.getByRole('button',{name:'Pinning…'})).toBeDisabled();
- await page.clock.fastForward(10001);await expect(page.getByText(/request timed out/i)).toBeVisible();
- await page.getByRole('button',{name:'Retry loading notes',exact:true}).click();
- await expect(page.locator('.pinned-note').first().locator('p')).toHaveText(fresh.message);
- await expect(page.locator('.pinned-note').filter({hasText:fresh.message})).toHaveCount(1);
- await expect(page.locator('.pinned-note')).toHaveCount(60);
- await expect(page.getByText('Existing note 59',{exact:true})).toHaveCount(0);
- await expect(page.getByLabel('What would you like to say?')).toHaveValue(fresh.message);
+ await page.route(`${base}/messages/mine`,route=>route.fulfill({json:{messages:submitted?[{...note,message:'<img src=x onerror=alert(1)>'}]:[]}}));
+ await page.goto('/zh/guestbook/');await page.getByLabel('有什么想说的话？').fill('<img src=x onerror=alert(1)>');
+ await page.getByRole('button',{name:'提交审核',exact:true}).click();
+ await expect(page.getByText('留言已提交，待站主审核后公开展示。')).toBeVisible();
+ await expect(page.locator('.own-notes-list')).toContainText('<img src=x onerror=alert(1)>');
+ await expect(page.locator('.own-notes-list')).toContainText('待审核');
+ await expect(page.locator('.approved-wall .pinned-note')).toHaveCount(0);await expect(page.locator('.own-notes-list img')).toHaveCount(0);
 });
-
-test('note order preserves ties and puts invalid dates last',async({page})=>{
- const messages=[
-  {...note,id:'invalid-a',message:'Undated first',createdAt:'invalid'},
-  {...note,id:'tie-a',message:'Equal date first'},
-  {...note,id:'latest',message:'Newest valid',createdAt:'2026-10-27T00:00:00Z'},
-  {...note,id:'tie-b',message:'Equal date second'},
-  {...note,id:'invalid-b',message:'Undated second',createdAt:''},
- ];
- await page.route(api,route=>route.fulfill({json:{messages}}));await page.goto('/guestbook/');
- await expect(page.locator('.pinned-note>p')).toHaveText(['Newest valid','Equal date first','Equal date second','Undated first','Undated second']);
+test('public refresh removes a note unpublished by the owner',async({page})=>{
+ let calls=0;await page.route(`${base}/messages`,route=>route.fulfill({json:{messages:++calls===1?[note]:[]}}));
+ await page.goto('/zh/guestbook/');await expect(page.locator('.pinned-note')).toHaveCount(1);
+ await page.getByRole('button',{name:'刷新公开留言'}).click();await expect(page.locator('.pinned-note')).toHaveCount(0);
+});
+test('stalled public load recovers without exposing a posting form to visitors',async({page})=>{
+ await page.clock.install();let calls=0;await page.route(`${base}/messages`,route=>{if(++calls===1)return;return route.fulfill({json:{messages:[note]}});});
+ await page.goto('/guestbook/');await page.clock.fastForward(12001);await expect(page.getByText('Notes could not be updated. Please refresh in a moment.')).toBeVisible();
+ await page.getByRole('button',{name:'Refresh public notes'}).click();await expect(page.locator('.pinned-note')).toHaveCount(1);
+ await expect(page.locator('textarea')).toHaveCount(0);
+});
+test('failed submission keeps the authenticated draft for retry',async({page})=>{
+ await signed(page);await page.route(`${base}/messages/mine`,r=>r.fulfill({json:{messages:[]}}));
+ await page.route(`${base}/messages`,r=>r.request().method()==='POST'?r.fulfill({status:503,json:{error:'Unavailable'}}):r.fulfill({json:{messages:[]}}));
+ await page.goto('/zh/guestbook/');await page.getByLabel('有什么想说的话？').fill('Keep this draft.');await page.getByRole('button',{name:'提交审核',exact:true}).click();
+ await expect(page.getByText('暂时无法完成请求，请稍后重试，已填写的内容会保留。')).toBeVisible();
+ await expect(page.getByLabel('有什么想说的话？')).toHaveValue('Keep this draft.');await expect(page.getByRole('button',{name:'提交审核',exact:true})).toBeEnabled();
+});
+test('regular accounts cannot read the moderation queue',async({page})=>{
+ await signed(page);let requests=0;await page.route(`${base}/admin/**`,r=>{requests++;return r.fulfill({status:403,json:{error:'Forbidden'}});});
+ await page.goto('/zh/admin/');await expect(page.getByRole('heading',{name:'这里仅对站主开放'})).toBeVisible();expect(requests).toBe(0);
+});
+test('owner approval and unpublishing use authenticated server review actions',async({page})=>{
+ await signed(page,'admin');let status='pending';
+ await page.route(`${base}/admin/messages?**`,r=>r.fulfill({json:{messages:r.request().url().endsWith(`status=${status}`)?[{...note,status,email:user.email}]:[]}}));
+ await page.route(`${base}/admin/messages/${note.id}/review`,r=>{expect(r.request().headers().authorization).toBe(`Bearer ${token}`);status=r.request().postDataJSON().decision;return r.fulfill({json:{...note,status,email:user.email}});});
+ await page.goto('/zh/admin/');await expect(page.getByText(note.message)).toBeVisible();await page.getByRole('button',{name:'通过并公开'}).click();await expect(page.getByText('审核结果已保存。')).toBeVisible();await expect(page.locator('.review-card')).toHaveCount(0);
+ await page.getByRole('tab',{name:'已通过'}).click();await expect(page.locator('.review-card')).toHaveCount(1);await page.getByRole('button',{name:'拒绝 / 下架'}).click();await expect(page.locator('.review-card')).toHaveCount(0);
+});
+test('project entry requires sign-in and no direct project URL is exported',async({page})=>{
+ await page.goto('/zh/projects/weyra/');await expect(page.locator('#links a')).toHaveCount(0);
+ await page.locator('#links button').first().click();await expect(page).toHaveURL(/\/zh\/auth\/\?next=/);
+ expect(page.url()).not.toContain('token');
+});
+test('verified login returns only to a safe local route, not a query-provided external site',async({page})=>{
+ await page.route(`${base}/auth/config`,r=>r.fulfill({json:{registration:'edu',deliveryMode:'smtp',devMailbox:false}}));
+ await page.route(`${base}/auth/request-code`,r=>r.fulfill({json:{challengeId:'challenge-1',expiresIn:600,resendAfter:60,deliveryMode:'smtp'}}));
+ await page.route(`${base}/auth/verify`,r=>r.fulfill({json:{token,expiresAt,user}}));
+ await page.route(`${base}/messages`,r=>r.fulfill({json:{messages:[]}}));await page.route(`${base}/messages/mine`,r=>r.fulfill({json:{messages:[]}}));
+ await page.goto('/zh/auth/?next=https://evil.example/');await page.getByLabel('教育邮箱',{exact:true}).fill(user.email);await page.getByRole('button',{name:'发送验证码'}).click();await page.getByLabel('邮箱验证码').fill('123456');await page.getByRole('button',{name:'验证并登录'}).click();await expect(page).toHaveURL('/zh/guestbook/');
+ expect(await page.evaluate(()=>localStorage.getItem('yuecheng-account-session'))).toBeNull();expect(page.url()).not.toContain(token);
+});
+test('development helper selects the latest resend code and remains clearly local',async({page})=>{
+ await page.route(`${base}/auth/config`,r=>r.fulfill({json:{registration:'edu',deliveryMode:'local',devMailbox:true}}));await page.route(`${base}/auth/request-code`,r=>r.fulfill({json:{challengeId:'challenge-1',expiresIn:600,resendAfter:60,deliveryMode:'local'}}));await page.route(`${base}/dev/mailbox?**`,r=>r.fulfill({json:{messages:[{code:'111111'},{code:'222222'}]}}));
+ await page.goto('/zh/auth/');await page.getByLabel('教育邮箱',{exact:true}).fill(user.email);await page.getByRole('button',{name:'发送验证码'}).click();await page.getByRole('button',{name:'查看本地测试验证码'}).click();await expect(page.locator('.local-code')).toHaveText('222222');await expect(page.locator('.local-mailbox')).toContainText('不会发到真实邮箱');
+});
+test('no-JavaScript wall explains sign-in needs and provides no misleading post form',async({browser})=>{
+ const context=await browser.newContext({javaScriptEnabled:false});const page=await context.newPage();await page.goto('http://127.0.0.1:4321/guestbook/');await expect(page.locator('.no-script-note')).toContainText('Enable JavaScript');await expect(page.locator('textarea')).toHaveCount(0);await context.close();
+});
+test('a delayed older public load cannot restore a note after a newer empty snapshot',async({page})=>{
+ let first:import('@playwright/test').Route|undefined;let calls=0;
+ await page.route(`${base}/messages`,async route=>{if(++calls===1){first=route;return;}await route.fulfill({json:{messages:[]}});});
+ await page.goto('/zh/guestbook/');await expect.poll(()=>calls).toBe(1);
+ await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await expect.poll(()=>calls).toBe(2);
+ await expect(page.getByText('风把纸页轻轻翻开，等待第一张通过审核的留言。')).toBeVisible();
+ await first!.fulfill({json:{messages:[note]}});
+ await expect(page.locator('.pinned-note')).toHaveCount(0);
 });

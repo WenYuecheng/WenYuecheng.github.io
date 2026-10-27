@@ -1,6 +1,6 @@
-# Yuecheng Wen · A curious little universe
+# Yuecheng Wen · The road is long; keep walking
 
-An original bilingual anime portfolio focused on Agent systems, recursive self-improvement (RSI) and parameter-efficient fine-tuning (PEFT). Built with Next.js static export, original illustrations, a real portrait, and a small independent guestbook service.
+An original bilingual anime portfolio focused on Agent systems, recursive self-improvement (RSI) and parameter-efficient fine-tuning (PEFT). Built with Next.js static export, original illustrations, a real portrait, and a small independent account and moderated guestbook service.
 
 - Personal site: https://wenyuecheng.cn/
 - GitHub Pages mirror: https://wenyuecheng.github.io/
@@ -34,9 +34,13 @@ Current track: **ZXXXQ — Can’t Give Up**, selected from the owner’s local 
 
 To replace it, add MP3 files to `public/music/` and configure `music.tracks` in `data/site.ts` with `title`, `artist`, `src` and `cover`. The shared player attempts autoplay when a track is configured, observes browser autoplay restrictions, starts enabled on each new visit, and stays mounted during internal navigation. If autoplay is blocked, the first ordinary click/keypress or the music button starts playback. A manual pause is respected across internal navigation during that visit; a fresh visit starts enabled again. An empty track list shows an honest unconfigured state. Audio failure does not block navigation. No online music API, weather or online chat is used.
 
-## Guestbook
+## Accounts and message wall
 
-See `services/guestbook/` and `deploy/guestbook/`. The API lives at `https://wenyuecheng.cn/api/portal`; both the personal domain and GitHub Pages mirror use it. It supports the two explicit site origins, validates and limits submissions, renders messages as text, and persists SQLite data in a Docker volume. Back up the volume and its salt file. The service shares the Caddy container's network namespace and listens only on loopback; recreate the guestbook container if Caddy itself is recreated.
+The navigation is Home / Projects / Wall / Contact. Education-mail verification supports students and faculty. Posting notes and resolving project links require a verified session; public portfolio/details and approved notes remain readable. Every new note needs owner approval. Authors can check their own status, and the server-configured owner can approve or reject notes in the moderation page. Email addresses are never public on the wall.
+
+See [account and moderation operations](docs/accounts-and-moderation.md), `services/guestbook/` and `deploy/guestbook/`. The API is `https://wenyuecheng.cn/api/portal`; both public sites use it after publication. It persists accounts, hashed sessions, review state and audit history in SQLite. Preserve its volume and salt. Local preview uses a private test outbox and sends no real email; live SMTP and all publication remain held for owner confirmation. The service shares Caddy's network namespace and loopback; recreate it after Caddy container replacement.
+
+The project cards use actual user-provided runtime screenshots. All original anime covers remain as faint detail-page backdrops. The wall uses a separate original garden scene with CSS motion, controlled by the shared motion preference.
 
 ## Publish
 
