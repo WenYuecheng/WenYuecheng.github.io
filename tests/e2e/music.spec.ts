@@ -42,7 +42,7 @@ test('failed audio does not block navigation and can be retried',async({page},in
  await page.route('**/music/cant-give-up.mp3',route=>route.abort());
  await page.goto('/zh/');await expect(page.locator('.music-copy strong')).toHaveText('暂时无法播放这首音乐');
  await navigate(page,'联系',info.project.name==='mobile');await expect(page).toHaveURL('/zh/contact/');
- await expect(page.locator('.email-address')).toHaveAttribute('href','mailto:15698557180@163.com');
+ await expect(page.locator('.xiaohongshu-contact')).toBeVisible();
  await page.unroute('**/music/cant-give-up.mp3');await page.getByRole('button',{name:'播放音乐',exact:true}).click();
  await expect.poll(()=>page.locator('audio').evaluate(a=>(a as HTMLAudioElement).currentTime)).toBeGreaterThan(0.1);
  await expect(page.locator('.music-copy strong')).toHaveText("Can't Give Up");
@@ -61,4 +61,11 @@ test('blocked entry starts on first ordinary click and respects a later pause',a
  await page.locator('.site-footer').getByRole('link',{name:'联系',exact:true}).click();
  await expect(page).toHaveURL('/zh/contact/');
  expect(await page.locator('audio').evaluate(a=>(a as HTMLAudioElement).paused)).toBe(true);
+});
+
+test('first document attempts sound before application code loads',async({page})=>{
+ await page.addInitScript(()=>{(window as any).earlyMusicAttempts=0;HTMLMediaElement.prototype.play=function(){(window as any).earlyMusicAttempts++;return Promise.reject(new DOMException('Gesture required','NotAllowedError'));};});
+ await page.route(/\/_next\/.*\.js(?:\?|$)/,r=>r.abort());
+ await page.goto('/',{waitUntil:'domcontentloaded'});await expect.poll(()=>page.evaluate(()=>(window as any).earlyMusicAttempts)).toBeGreaterThan(0);
+ await expect(page.locator('#site-audio')).toHaveAttribute('preload','auto');await expect(page.locator('html')).toHaveAttribute('data-music','blocked');
 });

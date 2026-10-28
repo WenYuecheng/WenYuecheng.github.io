@@ -2,6 +2,7 @@
 
 import fcntl
 import hashlib
+import html
 import hmac
 import ipaddress
 import json
@@ -16,20 +17,20 @@ import uuid
 from collections.abc import Callable, Iterator
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 from email.headerregistry import Address
 from email.utils import format_datetime, make_msgid
 from mail_template import verification_content
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from private_content import load_content, project_view, asset_path
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
@@ -144,6 +145,7 @@ class RequestBoundary:
         if headers.get("content-type", "").split(";", 1)[0].strip().lower() != "application/json":
             await reject(415, "Use application/json.")
             return
+        body_limit = 16384 if scope.get("path") == "/feedback" else MAX_BODY_BYTES
         if "content-length" in headers:
             try:
                 length = int(headers["content-length"])
@@ -152,7 +154,7 @@ class RequestBoundary:
             except ValueError:
                 await reject(400, "Invalid request size.")
                 return
-            if length > MAX_BODY_BYTES:
+            if length > body_limit:
                 await reject(413, "Request is too large.")
                 return
         body = bytearray()
@@ -161,7 +163,7 @@ class RequestBoundary:
             if event["type"] == "http.disconnect":
                 return
             body.extend(event.get("body", b""))
-            if len(body) > MAX_BODY_BYTES:
+            if len(body) > body_limit:
                 await reject(413, "Request is too large.")
                 return
             if not event.get("more_body", False):
@@ -243,6 +245,12 @@ def initialize(settings: Settings) -> bytes:
             );
             CREATE INDEX IF NOT EXISTS event_limits ON events(kind, created_at);
             CREATE INDEX IF NOT EXISTS public_message_pages ON messages(status, created_at);
+            CREATE TABLE IF NOT EXISTS feedback_reports (
+                id TEXT PRIMARY KEY, user_id TEXT NOT NULL, request_id TEXT NOT NULL,
+                day TEXT NOT NULL, created_at REAL NOT NULL, status TEXT NOT NULL,
+                UNIQUE(user_id, request_id)
+            );
+            CREATE INDEX IF NOT EXISTS feedback_daily ON feedback_reports(user_id,day);
             CREATE TABLE IF NOT EXISTS review_audit (
                 id INTEGER PRIMARY KEY, message_id TEXT NOT NULL, actor_id TEXT NOT NULL,
                 reviewed_at TEXT NOT NULL, from_status TEXT NOT NULL, to_status TEXT NOT NULL
@@ -363,6 +371,10 @@ def deliver_code(settings: Settings, email: str, code: str, timestamp: float) ->
     plain, html = verification_content(code, timestamp)
     message.set_content(plain, cte='quoted-printable')
     message.add_alternative(html, subtype='html', cte='quoted-printable')
+    send_mail(settings, message)
+
+
+def send_mail(settings: Settings, message: EmailMessage) -> None:
     context = ssl.create_default_context()
     if settings.smtp_security == 'ssl':
         smtp = smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=8, context=context)
@@ -376,6 +388,51 @@ def deliver_code(settings: Settings, email: str, code: str, timestamp: float) ->
         if settings.smtp_user:
             smtp.login(settings.smtp_user, settings.smtp_password)
         smtp.send_message(message)
+
+
+def deliver_feedback(settings: Settings, sender: str, report: dict, timestamp: float) -> None:
+    recipient = normalize_email(settings.admin_email)
+    if settings.mail_mode == 'file':
+        outbox(settings, timestamp, {'kind':'feedback','email':recipient,'sender':sender,'report':report,'timestamp':timestamp})
+        return
+    if not settings.smtp_host or not settings.smtp_from:
+        raise OSError('Mail is not configured.')
+    message = EmailMessage()
+    message['Subject'] = 'Eugene · 问题反馈 / Feedback · ' + report['title']
+    message['From'] = Address(display_name='Eugene · Website feedback', addr_spec=normalize_email(settings.smtp_from))
+    message['To'] = recipient
+    message['Reply-To'] = sender
+    message['Date'] = format_datetime(datetime.fromtimestamp(timestamp, timezone.utc))
+    message['Message-ID'] = make_msgid(domain='wenyuecheng.cn')
+    body = '\n'.join([report['title'], 'Type: '+report['category'], 'From: '+sender, 'Page: '+report['page'], report['context'], '', report['message']])
+    message.set_content(body)
+    safe = html.escape
+    message.add_alternative('<!doctype html><html><body style="margin:0;background:#f5f0ed;padding:32px;font-family:Arial,sans-serif;color:#342b39"><div style="max-width:600px;margin:auto;background:#fffdf9;border-radius:24px;padding:32px"><p style="color:#8b6d98;letter-spacing:3px">EUGENE · FEEDBACK</p><h1 style="font-size:26px">'+safe(report['title'])+'</h1><p style="color:#7c6d80">'+safe(report['category'])+' · '+safe(sender)+'</p><div style="white-space:pre-wrap;line-height:1.8;background:#f7f2f9;padding:24px;border-radius:16px">'+safe(report['message'])+'</div><p style="font-size:13px;color:#817886">'+safe(report['page'])+'<br>'+safe(report['context'])+'</p><p style="font-size:12px;color:#817886">Reply to this email to contact the reporter.</p></div></body></html>', subtype='html')
+    send_mail(settings, message)
+
+
+class FeedbackInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, strict=True, extra='forbid')
+    category: Literal['bug','suggestion','other']
+    title: str = Field(min_length=3, max_length=100)
+    message: str = Field(min_length=10, max_length=3000)
+    page: str = Field(default='', max_length=300)
+    context: str = Field(default='', max_length=400)
+    requestId: str = Field(pattern=r'^[A-Za-z0-9_-]{32,64}$')
+
+    @field_validator('title')
+    @classmethod
+    def single_line(cls, value):
+        if any(c in value for c in '\r\n'):
+            raise ValueError('Title must be one line.')
+        return value
+
+
+def feedback_window(timestamp: float) -> tuple[str, str]:
+    beijing = timezone(timedelta(hours=8))
+    current = datetime.fromtimestamp(timestamp, beijing)
+    reset = (current + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    return current.date().isoformat(), reset.isoformat()
 
 
 class StrictInput(BaseModel):
@@ -656,13 +713,52 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
             updated = db.execute('SELECT messages.*,users.email FROM messages LEFT JOIN users ON users.id=messages.user_id WHERE messages.id=?', (message_id,)).fetchone()
         return message_view(updated, private=True, admin=True, viewer='admin')
 
+
+    @app.get('/feedback/quota')
+    def feedback_quota(session: CurrentUser) -> dict:
+        day, reset = feedback_window(clock().timestamp())
+        with connect(settings.db_path) as db:
+            db.execute('DELETE FROM feedback_reports WHERE created_at<?',(clock().timestamp()-30*86400,))
+            used = db.execute('SELECT count(*) FROM feedback_reports WHERE user_id=? AND day=?', (session['user']['id'],day)).fetchone()[0]
+        return {'limit':3, 'remaining':max(0,3-used), 'resetsAt':reset}
+
+    @app.post('/feedback')
+    def feedback(payload: FeedbackInput, session: CurrentUser):
+        if not admin_email:
+            raise HTTPException(503, 'Feedback is temporarily unavailable.')
+        timestamp = clock().timestamp()
+        day, reset = feedback_window(timestamp)
+        user_id = session['user']['id']
+        report_id = uuid.uuid4().hex
+        with connect(settings.db_path) as db:
+            db.execute('BEGIN IMMEDIATE')
+            existing = db.execute('SELECT status FROM feedback_reports WHERE user_id=? AND request_id=?', (user_id,payload.requestId)).fetchone()
+            if existing:
+                if existing['status'] == 'sent':
+                    count = db.execute('SELECT count(*) FROM feedback_reports WHERE user_id=? AND day=?',(user_id,day)).fetchone()[0]
+                    return {'status':'sent','limit':3,'remaining':max(0,3-count),'resetsAt':reset}
+                raise HTTPException(409 if existing['status']=='pending' else 503, 'Feedback delivery is pending or failed.')
+            used = db.execute('SELECT count(*) FROM feedback_reports WHERE user_id=? AND day=?', (user_id,day)).fetchone()[0]
+            if used >= 3:
+                return JSONResponse({'error':'Daily feedback limit reached.', 'remaining':0, 'resetsAt':reset},status_code=429)
+            db.execute('INSERT INTO feedback_reports VALUES (?,?,?,?,?,?)',(report_id,user_id,payload.requestId,day,timestamp,'pending'))
+        try:
+            deliver_feedback(settings,session['user']['email'],payload.model_dump(exclude={'requestId'}),timestamp)
+        except Exception:
+            with connect(settings.db_path) as db:
+                db.execute("UPDATE feedback_reports SET status='failed' WHERE id=?",(report_id,))
+            raise HTTPException(503,'Feedback could not be sent. Please try again later.') from None
+        with connect(settings.db_path) as db:
+            db.execute("UPDATE feedback_reports SET status='sent' WHERE id=?",(report_id,))
+        return {'status':'sent', **feedback_quota(session)}
+
     @app.get('/content/home')
     def home_content(session: CurrentUser, locale: Annotated[str, Query(pattern=r'^(en|zh)$')] = 'en') -> dict:
         config = load_content(settings.content_dir)
         home = config['home'][locale]
         return {'name': config['identity'][locale if session['user']['role'] == 'admin' else 'en'], 'portraitAsset': 'portrait',
                 'profile': home['profile'], 'education': {key: value for key, value in home['education'].items() if key not in ('courses', 'coursework')},
-                'interests': home['interests'], 'contact': {'csdn': config.get('csdn', '')}}
+                'interests': home['interests'], 'contact': {'csdn': config.get('csdn', ''), 'email': config.get('ownerEmail','') if session['user']['role'] == 'admin' else admin_email}}
 
     @app.get('/content/projects')
     def projects_content(session: CurrentUser, locale: Annotated[str, Query(pattern=r'^(en|zh)$')] = 'en') -> dict:

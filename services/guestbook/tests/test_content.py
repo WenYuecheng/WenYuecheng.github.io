@@ -14,7 +14,7 @@ def content_settings(preview, tmp_path):
     (root / 'portrait.webp').write_bytes(b'private image')
     (root / 'emblem.jpg').write_bytes(b'private emblem')
     project = dict(slug='sample', tags=['AI'], coverAsset='weyra', backdrop='/garden.webp', accent='lilac', links=[], en=dict(title='Project', kicker='Hello', summary='Summary', description='Details', role='Owner', walkthrough=['Private explanation'], architecture=['Runtime'], features=[], stages=[], metrics=['SECRET'], notes=['SECRET'], scope='SECRET'), zh=dict(title='项目', kicker='你好', summary='概要', description='详情', role='作者', walkthrough=['私密说明'], architecture=[], features=[], stages=[]))
-    config = dict(identity={'en':'Owner Example', 'zh':'示例作者'}, home={locale:dict(profile={'text':'Profile'}, education={'current':'School', 'values':['A','B','C','D'], 'courses':['secret'], 'coursework':'secret'}, interests=[]) for locale in ('en','zh')}, projects=[project], assets={'portrait':'portrait.webp', 'emblem':'emblem.jpg'}, github='https://github.com/example', csdn='https://blog.csdn.net/example', projectLinks={'weyra':{'github':'https://github.com/example/project'}})
+    config = dict(ownerEmail='private-owner@example.com', identity={'en':'Owner Example', 'zh':'示例作者'}, home={locale:dict(profile={'text':'Profile'}, education={'current':'School', 'values':['A','B','C','D'], 'courses':['secret'], 'coursework':'secret'}, interests=[]) for locale in ('en','zh')}, projects=[project], assets={'portrait':'portrait.webp', 'emblem':'emblem.jpg'}, github='https://github.com/example', csdn='https://blog.csdn.net/example', projectLinks={'weyra':{'github':'https://github.com/example/project'}})
     (root / 'content.json').write_text(json.dumps(config))
     return replace(preview, content_dir=root)
 
@@ -28,7 +28,7 @@ def test_content_is_authenticated_role_filtered_and_revoked(content_settings):
         home=c.get('/content/home?locale=zh',headers=headers)
         assert home.json()['name']=='Owner Example'
         assert home.json()['education']['values']==['A','B','C','D']
-        assert home.json()['contact']=={'csdn':'https://blog.csdn.net/example'}
+        assert home.json()['contact']=={'csdn':'https://blog.csdn.net/example','email':content_settings.admin_email}
         assert 'github' not in home.json()['contact']
         assert 'courses' not in home.json()['education'] and 'coursework' not in home.json()['education']
         project=c.get('/content/projects/sample?role=admin',headers=headers).json()['project']
@@ -51,6 +51,7 @@ def test_content_is_authenticated_role_filtered_and_revoked(content_settings):
         assert p['walkthrough']==['私密说明']
         assert c.get('/auth/me?locale=zh',headers=ah).json()['user']['nickname']=='示例作者'
         assert c.get('/content/home?locale=zh',headers=ah).json()['name']=='示例作者'
+        assert c.get('/content/home',headers=ah).json()['contact']['email']=='private-owner@example.com'
         assert c.get('/content/home?locale=en',headers=ah).json()['name']=='Owner Example'
         c.post('/auth/logout',json={},headers=headers)
         assert c.get('/content/home',headers=headers).status_code==401

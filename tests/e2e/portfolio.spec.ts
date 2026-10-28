@@ -34,7 +34,7 @@ test('administrator project list and walkthrough use protected content',async({p
 });
 test('contact leads to a public approved-only wall with sign-in entry',async({page},info)=>{
  await page.route(/\/messages(?:\?.*)?$/,route=>route.fulfill({json:{messages:[{id:'note-1',name:'A visitor',message:'A thoughtful little corner.',createdAt:'2026-10-26T09:00:00Z'}]}}));
- await page.goto('/zh/contact/');await expect(page.locator('.email-address')).toHaveAttribute('href',/^mailto:/);
+ await page.goto('/zh/contact/');await expect(page.locator('.xiaohongshu-contact')).toBeVisible();
  await page.screenshot({path:`test-results/contact-${info.project.name}.png`,fullPage:true});
  await page.locator('.guestbook-invitation').click();await expect(page).toHaveURL('/zh/guestbook/');
  await expect(page.getByText('A thoughtful little corner.')).toBeVisible();

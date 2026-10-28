@@ -3,7 +3,7 @@ import {createContext,useContext,useEffect,useState,type ReactNode,type ImgHTMLA
 import {usePathname} from 'next/navigation';
 import {useAuth} from './Auth';
 import {site,type Locale} from '../data/site';
-export type PrivateHome={name:string;portraitAsset:string;contact:{csdn:string};profile:{eyebrow:string;title:string;motto:string;text:string;badge:string;photoAlt:string;interests:string};education:{shortName:string;startYear:string;eyebrow:string;title:string;current:string;degree:string;period:string;admission:string;next:string;nextDegree:string;metrics:string[];values:string[]};interests:{title:string;sub:string;body:string}[]};
+export type PrivateHome={name:string;portraitAsset:string;contact:{csdn:string;email?:string};profile:{eyebrow:string;title:string;motto:string;text:string;badge:string;photoAlt:string;interests:string};education:{shortName:string;startYear:string;eyebrow:string;title:string;current:string;degree:string;period:string;admission:string;next:string;nextDegree:string;metrics:string[];values:string[]};interests:{title:string;sub:string;body:string}[]};
 export type PrivateProject={slug:string;tags:string[];coverAsset:string;backdrop:string;accent:string;links:{key:string;label:string;zh?:string}[];title:string;kicker:string;summary:string;description:string;role?:string;architecture?:string[];features?:{title:string;body:string}[];stages?:string[];walkthrough?:string[]};
 export function usePrivateResource<T>(path:string|null){
  const auth=useAuth(),active=!!auth.user&&!auth.loading&&!auth.unavailable;

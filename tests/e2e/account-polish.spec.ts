@@ -10,7 +10,7 @@ test('public copy is simplified and personal GitHub buttons require verification
  }
  await expect(page.locator('.wall-empty')).toHaveText('风把纸页轻轻翻开，等待第一张留言。');
  await expect(page.locator('.wall-signin')).not.toContainText('支持 edu');
- await page.goto('/zh/contact/');await expect(page.locator('.contact-cards .verified-github,.social-contact')).toHaveCount(0);await expect(page.locator('.email-address')).toBeVisible();
+ await page.goto('/zh/contact/');await expect(page.locator('.contact-cards .verified-github,.social-contact')).toHaveCount(0);await expect(page.locator('.email-address')).toHaveCount(0);
 });
 test('administrator leaves nickname blank and goes directly to moderation',async({page})=>{
  await page.route('**/auth/request-code',r=>r.fulfill({json:{challengeId:'current-challenge',resendAfter:0,deliveryMode:'smtp'}}));

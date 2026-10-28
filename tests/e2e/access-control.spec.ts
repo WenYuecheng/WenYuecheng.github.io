@@ -17,7 +17,7 @@ test.beforeEach(async({page})=>{await page.route('**/opening/scene.json',r=>r.fu
 test('anonymous reader has only public identity, avatar, wall and email',async({page})=>{
  await page.goto('/zh/');await expect(page.locator('.hero-signature')).toContainText('Eugene');await expect(page.locator('.portrait-frame img')).toHaveAttribute('src','/images/eugene-avatar.webp');await expect(page.locator('.academic-metrics')).toHaveCount(0);await expect(page.locator('.selected-projects')).toHaveCount(0);
  await page.goto('/projects/weyra/');await expect(page.locator('.locked-panel')).toBeVisible();await expect(page.locator('.project-detail')).toHaveCount(0);
- await page.goto('/contact/');await expect(page.locator('.email-address')).toBeVisible();await expect(page.locator('.social-contact')).toHaveCount(0);
+ await page.goto('/contact/');await expect(page.locator('.email-address')).toHaveCount(0);await expect(page.locator('.social-contact')).toHaveCount(0);
  await page.goto('/guestbook/');await expect(page.locator('#main')).toBeVisible();
 });
 test('member sees private profile and two project blocks, then logout clears them',async({page})=>{

@@ -13,6 +13,7 @@ import { VerifiedGitHubLink } from './VerifiedGitHubLink';
 import { Companion } from './Companion';
 import {useIdentity} from './PrivateContent';
 import {useAuth} from './Auth';
+import {FeedbackDialog} from './FeedbackDialog';
 
 function readPreference(key:string) { try { return localStorage.getItem(key); } catch { return null; } }
 function savePreference(key:string,value:string) { try { localStorage.setItem(key,value); } catch { /* Private browsing still gets a functioning page. */ } }
@@ -47,7 +48,7 @@ export function Shell({children}:{children:ReactNode}) {
   {children}
   <footer className="site-footer"><div className="footer-star">✦</div><p>{t.footer}</p><div className="footer-links"><Link href={routeFor(locale,'/projects/')}>{t.nav.projects}</Link><Link href={routeFor(locale,'/contact/')}>{t.nav.contact}</Link><Link href={routeFor(locale,'/guestbook/')}>{locale==='zh'?'留言墙':'Message wall'}</Link>{home&&<VerifiedGitHubLink locale={locale}>GitHub <ArrowUpRight size={12}/></VerifiedGitHubLink>}<Link href={routeFor(locale,'/privacy/')}>{locale==='zh'?'隐私说明':'Privacy'}</Link></div><small>© {new Date().getFullYear()} {name}</small></footer>
   <BackgroundMusic locale={locale}/>
-  <Companion locale={locale}/>
+  <Companion locale={locale}/><FeedbackDialog key={auth.user?.id||'anonymous'} locale={locale}/>
   </div>
  </>;
 }
@@ -99,8 +100,8 @@ export function BackgroundMusic({locale}:{locale:Locale}) {
   {hint&&!track&&<p className="music-hint" role="status">{t.noMusicHint}</p>}
  </div>;
 }
-export function CopyEmail({locale}:{locale:Locale}) {
+export function CopyEmail({locale,email}:{locale:Locale;email:string}) {
  const [state,setState]=useState<'idle'|'ok'|'failed'>('idle');const t=content[locale].contact;const timer=useRef<ReturnType<typeof setTimeout>|null>(null);
  useEffect(()=>()=>{if(timer.current)clearTimeout(timer.current);},[]);
- return <button className="copy-button" onClick={async()=>{try{await navigator.clipboard.writeText(site.email);setState('ok');}catch{setState('failed');}if(timer.current)clearTimeout(timer.current);timer.current=setTimeout(()=>setState('idle'),3000);}}>{state==='ok'?<Check size={15}/>:null}<span role="status">{state==='ok'?t.copied:state==='failed'?t.copyFail:t.copy}</span></button>;
+ return <button className="copy-button" onClick={async()=>{try{await navigator.clipboard.writeText(email);setState('ok');}catch{setState('failed');}if(timer.current)clearTimeout(timer.current);timer.current=setTimeout(()=>setState('idle'),3000);}}>{state==='ok'?<Check size={15}/>:null}<span role="status">{state==='ok'?t.copied:state==='failed'?t.copyFail:t.copy}</span></button>;
 }
