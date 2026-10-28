@@ -16,12 +16,12 @@ test('administrator leaves nickname blank and goes directly to moderation',async
  await page.route('**/auth/request-code',r=>r.fulfill({json:{challengeId:'current-challenge',resendAfter:0,deliveryMode:'smtp'}}));
  await page.route('**/auth/verify',r=>{expect(r.request().postDataJSON().nickname).toBe('');return r.fulfill({json:{token,expiresAt,user:{id:'owner',nickname:'A visitor',email:'owner@example.edu',role:'admin'}}});});
  await page.route('**/admin/messages?*',r=>r.fulfill({json:{messages:[]}}));
- await page.goto('/zh/auth/');await page.locator('input[type=email]').fill('owner@example.edu');await page.getByRole('button',{name:'发送验证码'}).click();await page.getByLabel('邮箱验证码').fill('123456');await page.getByRole('button',{name:'验证并登录'}).click();await expect(page).toHaveURL('/zh/admin/');
+ await page.goto('/zh/auth/');await page.locator('input[type=email]').fill('owner@example.edu');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'发送验证码'}).click();await page.getByLabel('邮箱验证码').fill('123456');await page.getByRole('button',{name:'验证并登录'}).click();await expect(page).toHaveURL('/zh/admin/');
  await page.locator('.account-control').click();await expect(page.locator('.auth-card h2')).toHaveText('Eugene');
 });
 test('resending clears old input before using the new challenge',async({page})=>{
  let issued=0;await page.route('**/auth/request-code',r=>r.fulfill({json:{challengeId:`challenge-${++issued}`,resendAfter:0,deliveryMode:'smtp'}}));
- await page.goto('/zh/auth/');await page.locator('input[type=email]').fill('owner@example.edu');await page.getByRole('button',{name:'发送验证码'}).click();await page.getByLabel('邮箱验证码').fill('111111');await page.getByRole('button',{name:'发送验证码'}).click();await expect(page.getByLabel('邮箱验证码')).toHaveValue('');await expect(page.locator('.auth-status')).toContainText('旧码会失效');
+ await page.goto('/zh/auth/');await page.locator('input[type=email]').fill('owner@example.edu');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'发送验证码'}).click();await page.getByLabel('邮箱验证码').fill('111111');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'发送验证码'}).click();await expect(page.getByLabel('邮箱验证码')).toHaveValue('');await expect(page.locator('.auth-status')).toContainText('旧码会失效');
 });
 test('verified profile access resolves through the authenticated API',async({page})=>{
  await privateAccount(page);

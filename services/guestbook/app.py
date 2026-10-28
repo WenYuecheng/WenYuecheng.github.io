@@ -39,6 +39,7 @@ DEVELOPMENT_ORIGINS = (
     "http://localhost:4321", "http://localhost:3000",
     "http://127.0.0.1:4321", "http://127.0.0.1:3000",
 )
+PRIVACY_VERSION = "2026-10-28.1"
 MAX_BODY_BYTES = 8192
 
 
@@ -245,6 +246,13 @@ def initialize(settings: Settings) -> bytes:
             );
             CREATE INDEX IF NOT EXISTS event_limits ON events(kind, created_at);
             CREATE INDEX IF NOT EXISTS public_message_pages ON messages(status, created_at);
+            CREATE TABLE IF NOT EXISTS challenge_consents (
+                challenge_id TEXT PRIMARY KEY, privacy_version TEXT NOT NULL, accepted_at REAL NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS user_consents (
+                user_id TEXT NOT NULL, privacy_version TEXT NOT NULL, copyright_version TEXT NOT NULL,
+                accepted_at REAL NOT NULL, PRIMARY KEY(user_id,privacy_version,copyright_version)
+            );
             CREATE TABLE IF NOT EXISTS feedback_reports (
                 id TEXT PRIMARY KEY, user_id TEXT NOT NULL, request_id TEXT NOT NULL,
                 day TEXT NOT NULL, created_at REAL NOT NULL, status TEXT NOT NULL,
@@ -439,11 +447,16 @@ class StrictInput(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, strict=True, extra='forbid')
 
 
-class EmailInput(StrictInput):
+class ConsentInput(StrictInput):
+    privacyAccepted: bool = False
+    privacyVersion: str = Field(default='', max_length=40)
+
+
+class EmailInput(ConsentInput):
     email: str = Field(min_length=3, max_length=254)
 
 
-class VerifyInput(StrictInput):
+class VerifyInput(ConsentInput):
     challengeId: str = Field(min_length=1, max_length=64)
     code: str = Field(pattern=r'^[0-9]{6}$')
     nickname: str = Field(default='', max_length=40)
@@ -543,10 +556,12 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
 
     @app.get('/auth/config')
     def auth_config() -> dict:
-        return {'registration': 'edu', 'deliveryMode': 'local' if settings.mail_mode == 'file' else 'smtp', 'devMailbox': settings.dev_mailbox}
+        return {'registration': 'edu', 'deliveryMode': 'local' if settings.mail_mode == 'file' else 'smtp', 'devMailbox': settings.dev_mailbox, 'privacyVersion': PRIVACY_VERSION}
 
     @app.post('/auth/request-code')
     def request_code(payload: EmailInput, request: Request):
+        if payload.privacyAccepted is not True or payload.privacyVersion != PRIVACY_VERSION:
+            raise HTTPException(422, 'Please read and agree to the current privacy agreement.')
         try:
             email = eligible_email(payload.email, admin_email)
         except ValueError:
@@ -564,9 +579,11 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
             if blocked:
                 return blocked
             db.execute('DELETE FROM challenges WHERE created_at < ?', (timestamp - 86400,))
+            db.execute('DELETE FROM challenge_consents WHERE challenge_id NOT IN (SELECT id FROM challenges)')
             db.execute('UPDATE challenges SET invalidated=1 WHERE email=?', (email,))
             db.execute('INSERT INTO challenges(id,email,code_hash,created_at,expires_at) VALUES (?,?,?,?,?)',
                        (challenge, email, digest(app.state.salt, 'otp', challenge + '\0' + email + '\0' + code), timestamp, timestamp + 600))
+            db.execute('INSERT INTO challenge_consents VALUES (?,?,?)',(challenge,PRIVACY_VERSION,timestamp))
             try:
                 deliver_code(settings, email, code, timestamp)
             except (OSError, smtplib.SMTPException, ValueError):
@@ -578,6 +595,8 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
 
     @app.post('/auth/verify')
     def verify(payload: VerifyInput, request: Request):
+        if payload.privacyAccepted is not True or payload.privacyVersion != PRIVACY_VERSION:
+            raise HTTPException(422, 'Please read and agree to the current privacy agreement.')
         timestamp = clock().timestamp()
         peer = peer_key(request, settings, app.state.salt)
         with connect(settings.db_path) as db:
@@ -594,6 +613,9 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
                 return JSONResponse({'error': 'Too many verification attempts.'}, status_code=429, headers={'Retry-After': '600'})
             if not row or row['invalidated'] or row['expires_at'] <= timestamp:
                 return JSONResponse({'error': 'Code is invalid or expired.'}, status_code=400)
+            consent = db.execute('SELECT * FROM challenge_consents WHERE challenge_id=?',(payload.challengeId,)).fetchone()
+            if not consent or consent['privacy_version'] != PRIVACY_VERSION:
+                return JSONResponse({'error':'Request a new code after agreeing to the current privacy agreement.'},status_code=400)
             db.execute('UPDATE challenges SET attempts=attempts+1 WHERE id=?', (row['id'],))
             actual = digest(app.state.salt, 'otp', row['id'] + '\0' + row['email'] + '\0' + payload.code)
             if not hmac.compare_digest(actual, row['code_hash']):
@@ -601,6 +623,7 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
             db.execute('UPDATE challenges SET invalidated=1 WHERE id=?', (row['id'],))
             db.execute('INSERT OR IGNORE INTO users VALUES (?, ?, ?)', (uuid.uuid4().hex, row['email'], 'Eugene' if row['email'] == admin_email else payload.nickname or 'A visitor'))
             user = db.execute('SELECT * FROM users WHERE email=?', (row['email'],)).fetchone()
+            db.execute('INSERT OR IGNORE INTO user_consents VALUES (?,?,?,?)',(user['id'],PRIVACY_VERSION,PRIVACY_VERSION,timestamp))
             token = secrets.token_urlsafe(32)
             db.execute('DELETE FROM sessions WHERE expires_at<=?', (timestamp,))
             db.execute('INSERT INTO sessions VALUES (?, ?, ?)', (digest(app.state.salt, 'session', token), user['id'], timestamp + 28800))

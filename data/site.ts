@@ -5,7 +5,7 @@ export const site = {
   name: 'Eugene', xiaohongshu: 'https://www.xiaohongshu.com/user/profile/637e3d8d000000001f0176ae',
   url: 'https://wenyuecheng.cn',
   api: process.env.NEXT_PUBLIC_GUESTBOOK_API || 'https://wenyuecheng.cn/api/portal',
-  portrait: "/images/visitor-fox.webp",
+  portrait: "/images/visitor-fox-original.webp",
   art: { home: '/images/generated/letter-garden.webp', day: '/images/generated/hero-day.webp', night: '/images/generated/hero-night.webp', weyra: '/images/generated/weyra-cover.webp', solaceai: '/images/generated/solaceai-cover.webp', contact: '/images/generated/contact-garden.webp', profile: '/images/generated/profile-garden.webp', wall: '/images/generated/message-garden.webp' },
 };
 export type Track = { title: string; artist: string; src: string; cover?: string };

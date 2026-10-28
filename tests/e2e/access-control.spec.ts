@@ -8,14 +8,14 @@ async function account(page:Page,role:'user'|'admin'){
   if(path==='/content/home')return r.fulfill({json:home});
   if(path==='/content/projects')return r.fulfill({json:{projects:[project]}});
   if(path==='/content/projects/weyra')return r.fulfill({json:{project:role==='admin'?{...project,role:'ADMIN_WORK',architecture:['ADMIN_ARCHITECTURE'],features:[{title:'ADMIN_IMPLEMENTATION',body:'Internal'}],stages:['Input'],walkthrough:['ADMIN_WALKTHROUGH']}:project}});
-  if(path.startsWith('/content/assets/'))return r.fulfill({path:'public/images/visitor-fox.webp',contentType:'image/webp'});
+  if(path.startsWith('/content/assets/'))return r.fulfill({path:'public/images/visitor-fox-original.webp',contentType:'image/webp'});
   if(path==='/auth/logout')return r.fulfill({status:204});
   return r.fulfill({json:{messages:[],page:1,pageSize:12,total:0,totalPages:1}});
  });
 }
 test.beforeEach(async({page})=>{await page.route('**/opening/scene.json',r=>r.fulfill({json:{enabled:false}}));});
 test('anonymous reader has only public identity, avatar, wall and email',async({page})=>{
- await page.goto('/zh/');await expect(page.locator('.hero-signature')).toContainText('Eugene');await expect(page.locator('.portrait-frame img')).toHaveAttribute('src','/images/visitor-fox.webp');await expect(page.locator('.academic-metrics')).toHaveCount(0);await expect(page.locator('.selected-projects')).toHaveCount(0);
+ await page.goto('/zh/');await expect(page.locator('.hero-signature')).toContainText('Eugene');await expect(page.locator('.portrait-frame img')).toHaveAttribute('src','/images/visitor-fox-original.webp');await expect(page.locator('.academic-metrics')).toHaveCount(0);await expect(page.locator('.selected-projects')).toHaveCount(0);
  await page.goto('/projects/weyra/');await expect(page.locator('.locked-panel')).toBeVisible();await expect(page.locator('.project-detail')).toHaveCount(0);
  await page.goto('/contact/');await expect(page.locator('.email-address')).toHaveCount(0);await expect(page.locator('.social-contact')).toHaveCount(0);
  await page.goto('/guestbook/');await expect(page.locator('#main')).toBeVisible();

@@ -60,12 +60,12 @@ test('verified login returns only to a safe local route, not a query-provided ex
  await page.route(`${base}/auth/request-code`,r=>r.fulfill({json:{challengeId:'challenge-1',expiresIn:600,resendAfter:60,deliveryMode:'smtp'}}));
  await page.route(`${base}/auth/verify`,r=>r.fulfill({json:{token,expiresAt,user}}));
  await page.route(/\/messages(?:\?.*)?$/,r=>r.fulfill({json:{messages:[]}}));await page.route(`${base}/messages/mine?**`,r=>r.fulfill({json:{messages:[]}}));
- await page.goto('/zh/auth/?next=https://evil.example/');await page.getByLabel('邮箱（教育邮箱或站主邮箱）',{exact:true}).fill(user.email);await page.getByRole('button',{name:'发送验证码'}).click();await page.getByLabel('邮箱验证码').fill('123456');await page.getByRole('button',{name:'验证并登录'}).click();await expect(page).toHaveURL('/zh/guestbook/');
+ await page.goto('/zh/auth/?next=https://evil.example/');await page.getByLabel('邮箱（教育邮箱或站主邮箱）',{exact:true}).fill(user.email);await page.getByRole('checkbox').check();await page.getByRole('button',{name:'发送验证码'}).click();await page.getByLabel('邮箱验证码').fill('123456');await page.getByRole('button',{name:'验证并登录'}).click();await expect(page).toHaveURL('/zh/guestbook/');
  expect(await page.evaluate(()=>localStorage.getItem('yuecheng-account-session'))).toBeNull();expect(page.url()).not.toContain(token);
 });
 test('development helper selects the latest resend code and remains clearly local',async({page})=>{
  await page.route(`${base}/auth/config`,r=>r.fulfill({json:{registration:'edu',deliveryMode:'local',devMailbox:true}}));await page.route(`${base}/auth/request-code`,r=>r.fulfill({json:{challengeId:'challenge-1',expiresIn:600,resendAfter:60,deliveryMode:'local'}}));await page.route(`${base}/dev/mailbox?**`,r=>r.fulfill({json:{messages:[{code:'111111'},{code:'222222'}]}}));
- await page.goto('/zh/auth/');await page.getByLabel('邮箱（教育邮箱或站主邮箱）',{exact:true}).fill(user.email);await page.getByRole('button',{name:'发送验证码'}).click();await page.getByRole('button',{name:'查看本地测试验证码'}).click();await expect(page.locator('.local-code')).toHaveText('222222');await expect(page.locator('.local-mailbox')).toContainText('不会发到真实邮箱');
+ await page.goto('/zh/auth/');await page.getByLabel('邮箱（教育邮箱或站主邮箱）',{exact:true}).fill(user.email);await page.getByRole('checkbox').check();await page.getByRole('button',{name:'发送验证码'}).click();await page.getByRole('button',{name:'查看本地测试验证码'}).click();await expect(page.locator('.local-code')).toHaveText('222222');await expect(page.locator('.local-mailbox')).toContainText('不会发到真实邮箱');
 });
 test('no-JavaScript wall explains sign-in needs and provides no misleading post form',async({browser})=>{
  const context=await browser.newContext({javaScriptEnabled:false});const page=await context.newPage();await page.goto('http://127.0.0.1:4321/guestbook/');await expect(page.locator('.no-script-note')).toContainText('Enable JavaScript');await expect(page.locator('textarea')).toHaveCount(0);await context.close();
@@ -85,7 +85,7 @@ test('mailbox identity cannot change during code issuance, local lookup or verif
  await page.route(`${base}/auth/request-code`,r=>{issued=r;});await page.route(`${base}/dev/mailbox?**`,r=>{mailbox=r;});await page.route(`${base}/auth/verify`,r=>{verification=r;});
  await page.route(/\/messages(?:\?.*)?$/,r=>r.fulfill({json:{messages:[]}}));await page.route(`${base}/messages/mine?**`,r=>r.fulfill({json:{messages:[]}}));
  await page.goto('/zh/auth/');const email=page.getByLabel('邮箱（教育邮箱或站主邮箱）',{exact:true}),nickname=page.getByLabel('昵称（可选，不影响管理员身份）'),code=page.getByLabel('邮箱验证码');
- await email.fill(user.email);await page.getByRole('button',{name:'发送验证码'}).click();
+ await email.fill(user.email);await page.getByRole('checkbox').check();await page.getByRole('button',{name:'发送验证码'}).click();
  await expect(email).toBeDisabled();await expect(nickname).toBeDisabled();await expect(code).toBeDisabled();
  await issued!.fulfill({json:{challengeId:'challenge-1',expiresIn:600,resendAfter:60,deliveryMode:'local'}});await expect(email).toBeEnabled();await expect(email).toHaveValue(user.email);
  await page.getByRole('button',{name:'查看本地测试验证码'}).click();await expect(email).toBeDisabled();await mailbox!.fulfill({json:{messages:[{code:'222222'}]}});await expect(email).toBeEnabled();

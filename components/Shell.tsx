@@ -46,7 +46,7 @@ export function Shell({children}:{children:ReactNode}) {
    </div>
   </div></header>
   {children}
-  <footer className="site-footer"><div className="footer-star">✦</div><p>{t.footer}</p><div className="footer-links"><Link href={routeFor(locale,'/projects/')}>{t.nav.projects}</Link><Link href={routeFor(locale,'/contact/')}>{t.nav.contact}</Link><Link href={routeFor(locale,'/guestbook/')}>{locale==='zh'?'留言墙':'Message wall'}</Link>{home&&<VerifiedGitHubLink locale={locale}>GitHub <ArrowUpRight size={12}/></VerifiedGitHubLink>}<Link href={routeFor(locale,'/privacy/')}>{locale==='zh'?'隐私说明':'Privacy'}</Link></div><small>© {new Date().getFullYear()} {name}</small></footer>
+  <footer className="site-footer"><div className="footer-star">✦</div><p>{t.footer}</p><div className="footer-links"><Link href={routeFor(locale,'/projects/')}>{t.nav.projects}</Link><Link href={routeFor(locale,'/contact/')}>{t.nav.contact}</Link><Link href={routeFor(locale,'/guestbook/')}>{locale==='zh'?'留言墙':'Message wall'}</Link>{home&&<VerifiedGitHubLink locale={locale}>GitHub <ArrowUpRight size={12}/></VerifiedGitHubLink>}<Link href={routeFor(locale,'/privacy/')}>{locale==='zh'?'隐私协议':'Privacy'}</Link><Link href={routeFor(locale,'/copyright/')}>{locale==='zh'?'版权说明':'Copyright'}</Link></div><small>© {new Date().getFullYear()} {name}</small></footer>
   <BackgroundMusic locale={locale}/>
   <Companion locale={locale}/><FeedbackDialog key={auth.user?.id||'anonymous'} locale={locale}/>
   </div>

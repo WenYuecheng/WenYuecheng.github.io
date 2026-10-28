@@ -9,7 +9,7 @@ export async function privateAccount(page:Page,role:'user'|'admin'='user'){
   const projects=['weyra','solaceai'].map(slug=>({slug,tags:['Systems'],coverAsset:slug,backdrop:`/images/generated/${slug}-cover.webp`,accent:'lavender',links:[{key:'github',label:'GitHub',zh:'GitHub'}],title:slug==='weyra'?'Example Planner':'Example Companion',kicker:'A useful idea',summary:'A synthetic project introduction.',description:'A member project description.',...(role==='admin'?{role:'Implementation owner',architecture:['Receive input','Produce output'],features:[{title:'A useful feature',body:'An implementation example.'}],stages:['Input','Plan'],walkthrough:['Receive a question.','Choose an appropriate action.']}:{})}));
   if(path==='/content/projects')return r.fulfill({json:{projects}});
   if(path.startsWith('/content/projects/'))return r.fulfill({json:{project:projects.find(p=>path.endsWith(p.slug))}});
-  if(path.startsWith('/content/assets/'))return r.fulfill({path:'public/images/visitor-fox.webp',contentType:'image/webp'});
+  if(path.startsWith('/content/assets/'))return r.fulfill({path:'public/images/visitor-fox-original.webp',contentType:'image/webp'});
   return r.fulfill({json:{messages:[],page:1,pageSize:12,total:0,totalPages:1}});
  });
 }

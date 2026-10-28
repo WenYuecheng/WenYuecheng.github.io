@@ -1,5 +1,6 @@
 'use client';
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import {PRIVACY_VERSION} from '../data/legal';
 import { site, type Locale } from '../data/site';
 export type Account={id:string;nickname:string;email:string;role:'user'|'admin'};
 type Session={token:string;expiresAt:string;user:Account};
@@ -14,7 +15,7 @@ export function accountError(error:unknown,locale:Locale){
  if(status===422)return zh?'请检查邮箱、验证码或输入长度。支持 edu 教育邮箱，站主使用专用管理员邮箱。':'Check your email, code and input lengths. Use an edu education email, or the configured owner email.';
  return zh?'暂时无法完成请求，请稍后重试，已填写的内容会保留。':'The request could not be completed. Please retry; your draft is retained.';
 }
-type AuthState={revision:number;user:Account|null;loading:boolean;unavailable:boolean;api:<T>(path:string,options?:Options)=>Promise<T>;signIn:(challengeId:string,code:string,nickname:string)=>Promise<Account>;logout:()=>Promise<void>;refresh:()=>Promise<void>};
+type AuthState={revision:number;user:Account|null;loading:boolean;unavailable:boolean;api:<T>(path:string,options?:Options)=>Promise<T>;signIn:(challengeId:string,code:string,nickname:string,privacyAccepted:boolean)=>Promise<Account>;logout:()=>Promise<void>;refresh:()=>Promise<void>};
 const Context=createContext<AuthState|null>(null);
 const key='yuecheng-account-session';
 const validUser=(u:Account)=>u&&typeof u.id==='string'&&typeof u.nickname==='string'&&typeof u.email==='string'&&['user','admin'].includes(u.role);
@@ -51,8 +52,8 @@ export function AuthProvider({children}:{children:ReactNode}){
  },[clear,refresh]);
  useEffect(()=>{const check=()=>{if(token.current)void refresh();};const onShow=(event:PageTransitionEvent)=>{if(event.persisted)check();};const visible=()=>{if(document.visibilityState==='visible')check();};window.addEventListener('pageshow',onShow);document.addEventListener('visibilitychange',visible);return()=>{window.removeEventListener('pageshow',onShow);document.removeEventListener('visibilitychange',visible);};},[refresh]);
  useEffect(()=>{if(!expiresAt)return;const timer=setTimeout(clear,Math.max(0,Date.parse(expiresAt)-Date.now()));return()=>clearTimeout(timer);},[expiresAt,clear]);
- const signIn=async(challengeId:string,code:string,nickname:string)=>{
-  const data=await api<Session>('/auth/verify',{method:'POST',body:{challengeId,code,nickname}});
+ const signIn=async(challengeId:string,code:string,nickname:string,privacyAccepted:boolean)=>{
+  const data=await api<Session>('/auth/verify',{method:'POST',body:{challengeId,code,nickname,privacyAccepted,privacyVersion:PRIVACY_VERSION}});
   if(!validUser(data.user)||typeof data.token!=='string'||!/^[A-Za-z0-9_-]{40,256}$/.test(data.token)||!(Date.parse(data.expiresAt)>Date.now()))throw new ApiError(503);
   setRevision(v=>v+1);token.current=data.token;expiry.current=data.expiresAt;setUser(data.user);setExpiresAt(data.expiresAt);setUnavailable(false);setLoading(false);
   try{sessionStorage.setItem(key,JSON.stringify({token:data.token,expiresAt:data.expiresAt}));}catch{/* This visit still works in memory. */}
