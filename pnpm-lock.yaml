@@ -11,7 +11,13 @@ importers:
       '@fontsource/cormorant-garamond':
         specifier: 5.2.8
         version: 5.2.8
+      '@fontsource/mali':
+        specifier: 5.3.0
+        version: 5.3.0
       '@fontsource/source-sans-3':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/zcool-kuaile':
         specifier: 5.3.0
         version: 5.3.0
       framer-motion:
@@ -219,8 +225,14 @@ packages:
   '@fontsource/cormorant-garamond@5.2.8':
     resolution: {integrity: sha512-ylx8F6QQ0cyhS/fyeAqv3SlZNr+y3Cvt/AOd1e2hVA62Eg86vPqjugN7l5rsh6pnjbwHRaPNZWh98hyT7sasAQ==}
 
+  '@fontsource/mali@5.3.0':
+    resolution: {integrity: sha512-/H7zdnFcBUdLh7mPUCLWfCoQVgtvnVKrlHjknq90kltPvUcu0nC9ybne4z2rzTghV9ez9N7nRDvRZesODB/YbQ==}
+
   '@fontsource/source-sans-3@5.3.0':
     resolution: {integrity: sha512-VrWixSgF93kOVSEkwjs9ImnAbxrBew4PgcnaJYEitG9TyJSwxjFUNJIgzB1XFP/acyAWcTDg7+sWe7JI8LTB9w==}
+
+  '@fontsource/zcool-kuaile@5.3.0':
+    resolution: {integrity: sha512-jn4vpQ6QSVEckUn7uk5a9XcZMxEksTRqljmeE1VKRGMjGd6VoXdMyLGSdnTXSVwZLCCEHaIcm/2cdQuwvasJ9w==}
 
   '@img/colour@1.1.0':
     resolution: {integrity: sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ==}
@@ -1261,7 +1273,11 @@ snapshots:
 
   '@fontsource/cormorant-garamond@5.2.8': {}
 
+  '@fontsource/mali@5.3.0': {}
+
   '@fontsource/source-sans-3@5.3.0': {}
+
+  '@fontsource/zcool-kuaile@5.3.0': {}
 
   '@img/colour@1.1.0': {}
 
