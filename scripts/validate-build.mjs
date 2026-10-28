@@ -6,7 +6,7 @@ for(const route of routes){const file=path.join('out',route,'index.html');if(!fs
 for(const route of ['projects/mindbridge','projects/yuecheng-harness','projects/chat2excel','projects/edurag-agent','photography'])if(fs.existsSync(path.join('out',route,'index.html')))throw Error('Old route must be deleted: '+route);
 for(const image of ['letter-garden','hero-day','hero-night','weyra-cover','solaceai-cover','contact-garden','profile-garden','message-garden'])if(!fs.existsSync(`out/images/generated/${image}.webp`))throw Error('Missing image '+image);
 if(fs.existsSync('out/images/portrait.webp')||fs.existsSync('out/images/runtime'))throw Error('Private assets must not be exported');
-if(!fs.existsSync('out/images/eugene-avatar.webp'))throw Error('Missing public avatar');
+if(!fs.existsSync('out/images/visitor-fox.webp'))throw Error('Missing public avatar');
 if(!fs.existsSync('out/images/companion/pink-front-pen.webp'))throw Error('Missing approved companion artwork');
 for(const frame of ['elf-turn-closed','elf-side-closed','elf-side-half','elf-side-open'])if(!fs.existsSync(`out/images/opening/${frame}.webp`))throw Error('Missing opening pose '+frame);
 const rootHtml=fs.readFileSync('out/index.html','utf8');

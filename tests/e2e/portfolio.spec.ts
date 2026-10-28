@@ -4,7 +4,7 @@ test.beforeEach(async({page})=>{await page.route('**/opening/scene.json',r=>r.fu
 test('bilingual public home, avatar and protected profile',async({page},info)=>{
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('/zh/');await expect(page.locator('h1')).toContainText('时来天地皆同力');
- await expect(page.getByAltText('Eugene 的 Q 版头像')).toBeVisible();
+ await expect(page.getByAltText('Eugene 的白狐头像')).toBeVisible();
  await expect(page.locator('.academic-metrics')).toHaveCount(0);
  await expect(page.locator('.project-card')).toHaveCount(0);
  await expect(page.locator('body')).not.toContainText('EduRAG');
@@ -50,5 +50,5 @@ test('selected music, navigation and custom companion work',async({page},info)=>
  await expect(page).toHaveURL('/zh/projects/');
 });
 test('static content remains available without JavaScript',async({browser})=>{
- const context=await browser.newContext({javaScriptEnabled:false});const page=await context.newPage();await page.goto('http://127.0.0.1:4321/zh/');await expect(page.locator('h1')).toBeVisible();await expect(page.locator('html')).toHaveAttribute('lang','zh-CN');await expect(page.getByAltText('Eugene 的 Q 版头像')).toBeVisible();await expect(page.locator('.academic-metrics,.project-card')).toHaveCount(0);await context.close();
+ const context=await browser.newContext({javaScriptEnabled:false});const page=await context.newPage();await page.goto('http://127.0.0.1:4321/zh/');await expect(page.locator('h1')).toBeVisible();await expect(page.locator('html')).toHaveAttribute('lang','zh-CN');await expect(page.getByAltText('Eugene 的白狐头像')).toBeVisible();await expect(page.locator('.academic-metrics,.project-card')).toHaveCount(0);await context.close();
 });

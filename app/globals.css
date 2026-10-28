@@ -358,3 +358,5 @@ html:not(.dark) .academic-metrics span{color:#302822}
 body:has(.feedback-dialog[open]){overflow:hidden}
 
 .dark .feedback-letterhead{color:#cfb3dd}.dark .feedback-count{color:#c4abc9}
+
+.portrait-frame.public-avatar{height:auto;aspect-ratio:1;border-radius:24px}.portrait-frame.public-avatar>img{object-position:center;object-fit:cover}

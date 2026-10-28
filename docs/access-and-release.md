@@ -10,7 +10,7 @@ Website email registration remains open to eligible educational mailboxes. Solac
 
 Before deploying, test every role, missing/expired credentials, direct routes and assets, logout/back navigation, both locales, and desktop/mobile. Verify content fields and private assets through authenticated probes without paid model calls. Inspect final public artifacts and remove stale public resources. Do not increase existing provider budgets.
 
-The public avatar is an original simplified cartoon based on general visual traits; the source photograph is not included in current public source. Browser autoplay restrictions can require a gesture. No unverified filing or licensing assertion is displayed.
+The public avatar uses the supplied glasses-wearing fox photo, cleaned and restored at its full output resolution. Authenticated portraits remain private. Browser autoplay restrictions can require a gesture. No unverified filing or licensing assertion is displayed.
 
 Public contact surfaces expose only the configured Xiaohongshu profile. Mail addresses are supplied by the protected home response: members see the configured administrator mailbox, and the owner sees the private owner contact mailbox. Keep the latter in private content configuration. Anonymous HTML and scripts contain neither address.
 
