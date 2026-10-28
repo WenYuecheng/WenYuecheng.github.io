@@ -7,6 +7,7 @@ services:
     # Recreate this service whenever the Caddy container is recreated.
     network_mode: "container:${PORTAL_CADDY_CONTAINER:-solaceai-light-caddy-1}"
     environment:
+      PORTAL_CONTENT_DIR: /private-content
       PORTAL_DB_PATH: /data/guestbook.sqlite3
       PORTAL_ENV: production
       PORTAL_TRUST_LOCAL_PROXY: "1"
@@ -21,6 +22,7 @@ services:
       PORTAL_SMTP_PASSWORD: ${PORTAL_SMTP_PASSWORD:-}
     volumes:
       - guestbook-data:/data
+      - ${PORTAL_CONTENT_DIR:?Set PORTAL_CONTENT_DIR to the private content directory}:/private-content:ro
     read_only: true
     tmpfs:
       - /tmp:size=16m,noexec,nosuid

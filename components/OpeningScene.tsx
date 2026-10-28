@@ -4,7 +4,10 @@ import {usePathname} from 'next/navigation';
 import {ArrowRight} from 'lucide-react';
 import {OPENING_DURATION,parseOpeningScene,projectOpeningPoint,type OpeningScene as Scene} from '../lib/opening';
 
+import {useIdentity} from './PrivateContent';
+import {OpeningSound} from './EarlyAudio';
 export function OpeningScene(){
+ const {name}=useIdentity();
  const pathname=usePathname();
  const [scene,setScene]=useState<Scene|null>(null),[ready,setReady]=useState(false);
  const [artSize,setArtSize]=useState({width:1536,height:1024});
@@ -89,9 +92,9 @@ export function OpeningScene(){
   <div className="opening-eye-light" aria-hidden="true"/>
   <div className="opening-dust" aria-hidden="true">{Array.from({length:12},(_,i)=><i key={i} style={{left:`${(i*23+9)%100}%`,top:`${(i*31+17)%100}%`,animationDelay:`${i*.13}s`}}/>)}</div>
   <div className="opening-dawn" aria-hidden="true"/>
-  <div className="opening-brand"><span className="opening-brand-spark">✦</span><span>Yuecheng Wen</span><i/><small>wenyuecheng.cn</small></div>
-  <div className="opening-title-block"><div className="opening-orbit" aria-hidden="true"><i/></div><p className="opening-owner">{zh?'Yuecheng Wen 的个人空间':'Yuecheng Wen’s personal space'}</p><div className="opening-site-title">wenyuecheng<span>.cn</span></div><p className="opening-welcome">{zh?'欢迎走进我的世界':'Welcome to my world'}</p><div className="opening-title-line" aria-hidden="true"><span/>✦<span/></div></div>
+  <div className="opening-brand"><span className="opening-brand-spark">✦</span><span>{name}</span><i/><small>{zh?'个人空间':'Personal space'}</small></div>
+  <div className="opening-title-block"><div className="opening-orbit" aria-hidden="true"><i/></div><p className="opening-owner">{zh?`${name} 的个人空间`:`${name}’s personal space`}</p><div className="opening-site-title">{name}</div><p className="opening-welcome">{zh?'欢迎走进我的世界':'Welcome to my world'}</p><div className="opening-title-line" aria-hidden="true"><span/>✦<span/></div></div>
   <p className="opening-caption">{zh?'循着微光，走进我的世界。':'Follow the light into my world.'}</p>
-  <button className="opening-skip" onClick={()=>finishRef.current()}>{zh?'跳过动画':'Skip intro'}<ArrowRight size={16}/></button>
+  <OpeningSound/><button className="opening-skip" onClick={()=>finishRef.current()}>{zh?'跳过动画':'Skip intro'}<ArrowRight size={16}/></button>
  </div>;
 }

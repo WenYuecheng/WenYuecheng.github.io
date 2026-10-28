@@ -11,7 +11,7 @@ RUN groupadd --gid 10001 portal \
 WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
-COPY app.py mail_template.py ./
+COPY app.py mail_template.py private_content.py ./
 USER 10001:10001
 VOLUME ["/data"]
 EXPOSE 8093

@@ -1,4 +1,5 @@
 import { test, expect, type Locator } from '@playwright/test';
+import {privateAccount} from './private-fixture';
 test.beforeEach(async({page})=>{await page.route('**/opening/scene.json',r=>r.fulfill({json:{enabled:false}}));});
 import sharp from 'sharp';
 import { writeFile } from 'node:fs/promises';
@@ -34,21 +35,22 @@ async function contrast(locator:Locator){
 
 for(const theme of ['light','dark'])test(`${theme} labels and actions meet 4.5 on composed surfaces`,async({page},info)=>{
  await page.addInitScript(theme=>{localStorage.setItem('yuecheng-theme',theme);localStorage.setItem('yuecheng-motion','off');},theme);
- await page.addInitScript(()=>sessionStorage.setItem('yuecheng-account-session',JSON.stringify({token:'t'.repeat(43),expiresAt:new Date(Date.now()+3600000).toISOString()})));
- await page.route('**/auth/me',route=>route.fulfill({json:{user:{id:'test-user',nickname:'Test student',email:'test@university.edu.cn',role:'user'},expiresAt:new Date(Date.now()+3600000).toISOString()}}));
- await page.route('**/messages/mine',route=>route.fulfill({json:{messages:[]}}));
+ await privateAccount(page,'admin');
+ await page.route('**/messages/mine?**',route=>route.fulfill({json:{messages:[]}}));
  await page.route(/\/messages(?:\?.*)?$/,route=>route.fulfill({json:{messages:Array.from({length:4},(_,i)=>({id:i,name:'A visitor',message:'A note for contrast checks.',createdAt:'2026-10-26T10:00:00Z'}))}}));
  const results:{page:string;selector:string;ratio:number}[]=[];
  for(const prefix of ['', '/zh'])for(const [path,selectors] of [
   ['/guestbook/',['.wall-heading .section-kicker','.wall-heading>p:last-child','.compose-intro','.wall-message-label>span','.wall-message-label>small','.form-bottom>p','.form-bottom .primary','.pinned-note footer','.signed-author>small']],
   ['/contact/',['.contact-hero .hero-greeting','.contact-hero .wrap>p:last-child','.email-address','.copy-button','.social-contact>span','.guestbook-invitation p:last-child']],
-  ['/',['.hero-greeting','.hero-subtitle','.hero-intro','.hero-outline','.hero-contact-link','.hero-scroll','.academic-metrics span','.wordmark small','.intro-card p','.admission-top','.admission-status','.school-header small','.course-grid b','.project-tags span','.site-footer>small','.text-link']],
+  ['/',['.hero-greeting','.hero-subtitle','.hero-intro','.hero-outline','.hero-contact-link','.hero-scroll','.academic-metrics span','.wordmark small','.intro-card p','.admission-top','.admission-status','.school-header small','.project-tags span','.site-footer>small','.text-link']],
   ['/projects/',['.page-banner .hero-greeting','.page-banner .wrap>p:last-child']],
   ['/projects/solaceai/',['.project-detail-hero .back-link','.detail-summary','.detail-tags span','.walkthrough-top','.flow-stages button','.flow-description p']],
   ['/projects/weyra/',['.project-detail-hero .back-link','.detail-summary','.detail-tags span','.walkthrough-top','.flow-stages button','.flow-description p']],
  ] as const){
   await page.goto(`${prefix}${path}`);await page.evaluate(()=>document.fonts.ready);
   if(theme==='dark')await expect(page.locator('html')).toHaveClass('dark');
+  if(path.startsWith('/projects/')&&path!=='/projects/')await expect(page.locator('.walkthrough')).toBeVisible();
+  if(path==='/')await expect(page.locator('.academic-metrics')).toBeVisible();
   if(path==='/guestbook/')await page.locator('.note-form textarea').fill('Contrast check');
   for(const selector of selectors){for(const element of await page.locator(selector).all()){
    if(!await element.isVisible())continue;

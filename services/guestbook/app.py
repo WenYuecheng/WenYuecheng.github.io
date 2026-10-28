@@ -27,7 +27,8 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from private_content import load_content, project_view, asset_path
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -43,6 +44,7 @@ MAX_BODY_BYTES = 8192
 @dataclass(frozen=True)
 class Settings:
     db_path: Path
+    content_dir: Path | None = None
     development: bool = False
     trust_proxy_header: bool = False
     hmac_salt: str | None = None
@@ -61,6 +63,7 @@ class Settings:
     def from_env(cls) -> "Settings":
         return cls(
             db_path=Path(os.environ.get("PORTAL_DB_PATH", "/data/guestbook.sqlite3")),
+            content_dir=Path(os.environ["PORTAL_CONTENT_DIR"]) if os.environ.get("PORTAL_CONTENT_DIR") else None,
             development=os.environ.get("PORTAL_ENV") == "development",
             trust_proxy_header=os.environ.get("PORTAL_TRUST_LOCAL_PROXY") == "1",
             hmac_salt=os.environ.get("PORTAL_HMAC_SALT"),
@@ -121,7 +124,8 @@ class RequestBoundary:
         async def safe_send(message: Message) -> None:
             if message["type"] == "http.response.start":
                 headers = MutableHeaders(scope=message)
-                headers["Cache-Control"] = "no-store"
+                headers["Cache-Control"] = "private, no-store" if scope["path"].startswith("/content/") else "no-store"
+                headers.add_vary_header("Authorization")
                 headers["X-Content-Type-Options"] = "nosniff"
             await send(message)
 
@@ -266,13 +270,7 @@ def peer_key(request: Request, settings: Settings, salt: bytes) -> str:
 # ASCII mailbox syntax, with label boundaries rather than a substring match.
 EMAIL_LOCAL = re.compile(r"[a-z0-9!#$%&'*+/=?^_`{|}~.-]+", re.ASCII)
 DOMAIN_LABEL = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?", re.ASCII)
-PROJECT_LINKS = {
-    ('weyra', 'github'): 'https://github.com/WenYuecheng/Weyra',
-    ('weyra', 'architecture'): 'https://github.com/WenYuecheng/Weyra/blob/main/docs/ARCHITECTURE.md',
-    ('weyra', 'evidence'): 'https://github.com/WenYuecheng/Weyra/tree/main/docs/evidence',
-    ('solaceai', 'demo'): 'https://solaceai.wenyuecheng.cn',
-    ('solaceai', 'legacy'): 'https://mindbridge.wenyuecheng.cn',
-}
+
 
 
 def normalize_email(value: str) -> str:
@@ -358,7 +356,7 @@ def deliver_code(settings: Settings, email: str, code: str, timestamp: float) ->
         raise OSError('Mail is not configured.')
     message = EmailMessage()
     message['Subject'] = 'wenyuecheng.cn · 登录验证码 / Sign-in code'
-    message['From'] = Address(display_name='Yuecheng Wen · wenyuecheng.cn', addr_spec=normalize_email(settings.smtp_from))
+    message['From'] = Address(display_name='Eugene · wenyuecheng.cn', addr_spec=normalize_email(settings.smtp_from))
     message['To'] = email
     message['Date'] = format_datetime(datetime.fromtimestamp(timestamp, timezone.utc))
     message['Message-ID'] = make_msgid(domain='wenyuecheng.cn')
@@ -446,8 +444,16 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
     async def storage_error(_request: Request, _error: sqlite3.Error) -> JSONResponse:
         return JSONResponse({'error': 'Guestbook is temporarily unavailable.'}, status_code=503)
 
-    def user_view(row) -> dict:
-        return {'id': row['id'], 'nickname': 'Yuecheng Wen' if row['email'] == admin_email else row['nickname'], 'email': row['email'],
+    def owner_name(locale: str = 'en', viewer: str = 'admin') -> str:
+        if viewer == 'anonymous':
+            return 'Eugene'
+        try:
+            return load_content(settings.content_dir)['identity'][locale if viewer == 'admin' else 'en']
+        except HTTPException:
+            return 'Eugene'
+
+    def user_view(row, locale: str = 'en') -> dict:
+        return {'id': row['id'], 'nickname': owner_name(locale) if row['email'] == admin_email else row['nickname'], 'email': row['email'],
                 'role': 'admin' if row['email'] == admin_email else 'user'}
 
     def authenticated(request: Request) -> dict:
@@ -461,7 +467,7 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
                              (token_hash, clock().timestamp())).fetchone()
         if row is None:
             raise HTTPException(401, 'Sign in to continue.')
-        return {'user': user_view(row), 'expiresAt': iso(row['expires_at']), 'token_hash': token_hash}
+        return {'user': user_view(row, request.query_params.get('locale', 'en') if request.query_params.get('locale', 'en') in ('en', 'zh') else 'en'), 'expiresAt': iso(row['expires_at']), 'token_hash': token_hash}
 
     CurrentUser = Annotated[dict, Depends(authenticated)]
 
@@ -536,7 +542,7 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
             if not hmac.compare_digest(actual, row['code_hash']):
                 return JSONResponse({'error': 'Code is invalid or expired.'}, status_code=400)
             db.execute('UPDATE challenges SET invalidated=1 WHERE id=?', (row['id'],))
-            db.execute('INSERT OR IGNORE INTO users VALUES (?, ?, ?)', (uuid.uuid4().hex, row['email'], 'Yuecheng Wen' if row['email'] == admin_email else payload.nickname or 'A visitor'))
+            db.execute('INSERT OR IGNORE INTO users VALUES (?, ?, ?)', (uuid.uuid4().hex, row['email'], 'Eugene' if row['email'] == admin_email else payload.nickname or 'A visitor'))
             user = db.execute('SELECT * FROM users WHERE email=?', (row['email'],)).fetchone()
             token = secrets.token_urlsafe(32)
             db.execute('DELETE FROM sessions WHERE expires_at<=?', (timestamp,))
@@ -576,9 +582,9 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
             rows = outbox(settings, clock().timestamp())
             return {'messages': [{k: row[k] for k in ('email', 'code', 'createdAt')} for row in rows if row['email'] == email]}
 
-    def message_view(row, private: bool = False, admin: bool = False) -> dict:
+    def message_view(row, private: bool = False, admin: bool = False, viewer: str = 'anonymous', locale: str = 'en') -> dict:
         owner = 'email' in row.keys() and row['email'] == admin_email
-        item = {'id': row['id'], 'name': 'Yuecheng Wen' if owner else row['name'], 'message': row['message'], 'createdAt': row['created_at']}
+        item = {'id': row['id'], 'name': owner_name(locale, viewer) if owner else row['name'], 'message': row['message'], 'createdAt': row['created_at']}
         if private:
             item['status'] = row['status']
         if admin:
@@ -588,8 +594,9 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
         return item
 
     @app.get('/messages', response_model=MessagePage, response_model_exclude_none=True)
-    def list_messages(page: Annotated[int | None, Query(ge=1, le=100000)] = None,
+    def list_messages(request: Request, locale: Annotated[str, Query(pattern=r'^(en|zh)$')] = 'en', page: Annotated[int | None, Query(ge=1, le=100000)] = None,
                       page_size: Annotated[int, Query(alias='pageSize', ge=1, le=24)] = 12) -> dict:
+        viewer = authenticated(request)['user']['role'] if request.headers.get('authorization') else 'anonymous'
         with connect(settings.db_path) as db:
             db.execute('BEGIN')
             # Keep old clients compatible; the new website always requests explicit pages.
@@ -599,7 +606,7 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
             limit = page_size if page is not None else 60
             rows = db.execute("SELECT messages.*,users.email FROM messages LEFT JOIN users ON users.id=messages.user_id WHERE status='approved' ORDER BY messages.created_at DESC,messages.rowid DESC LIMIT ? OFFSET ?",
                               (limit, (current - 1) * page_size)).fetchall()
-        result = {'messages': [message_view(row) for row in rows]}
+        result = {'messages': [message_view(row, viewer=viewer, locale=locale) for row in rows]}
         if page is not None:
             result.update(page=current, pageSize=page_size, total=total, totalPages=pages)
         return result
@@ -624,16 +631,16 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
         return item
 
     @app.get('/messages/mine')
-    def mine(session: CurrentUser) -> dict:
+    def mine(session: CurrentUser, locale: Annotated[str, Query(pattern=r'^(en|zh)$')] = 'en') -> dict:
         with connect(settings.db_path) as db:
             rows = db.execute('SELECT messages.*,users.email FROM messages LEFT JOIN users ON users.id=messages.user_id WHERE messages.user_id=? ORDER BY messages.created_at DESC,messages.rowid DESC LIMIT 60', (session['user']['id'],)).fetchall()
-        return {'messages': [message_view(row, private=True) for row in rows]}
+        return {'messages': [message_view(row, private=True, viewer=session['user']['role'], locale=locale) for row in rows]}
 
     @app.get('/admin/messages')
-    def admin_messages(_session: AdminUser, status: Annotated[str, Query(pattern=r'^(pending|approved|rejected)$')] = 'pending') -> dict:
+    def admin_messages(_session: AdminUser, locale: Annotated[str, Query(pattern=r'^(en|zh)$')] = 'en', status: Annotated[str, Query(pattern=r'^(pending|approved|rejected)$')] = 'pending') -> dict:
         with connect(settings.db_path) as db:
             rows = db.execute('SELECT messages.*,users.email FROM messages LEFT JOIN users ON users.id=messages.user_id WHERE status=? ORDER BY created_at DESC,messages.rowid DESC LIMIT 100', (status,)).fetchall()
-        return {'messages': [message_view(row, private=True, admin=True) for row in rows]}
+        return {'messages': [message_view(row, private=True, admin=True, viewer='admin', locale=locale) for row in rows]}
 
     @app.post('/admin/messages/{message_id}/review')
     def review(message_id: str, payload: ReviewInput, session: AdminUser) -> dict:
@@ -647,15 +654,41 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
                        (message_id, session['user']['id'], reviewed_at, row['status'], payload.decision))
             db.execute('UPDATE messages SET status=?,reviewed_at=? WHERE id=?', (payload.decision, reviewed_at, message_id))
             updated = db.execute('SELECT messages.*,users.email FROM messages LEFT JOIN users ON users.id=messages.user_id WHERE messages.id=?', (message_id,)).fetchone()
-        return message_view(updated, private=True, admin=True)
+        return message_view(updated, private=True, admin=True, viewer='admin')
+
+    @app.get('/content/home')
+    def home_content(session: CurrentUser, locale: Annotated[str, Query(pattern=r'^(en|zh)$')] = 'en') -> dict:
+        config = load_content(settings.content_dir)
+        home = config['home'][locale]
+        return {'name': config['identity'][locale if session['user']['role'] == 'admin' else 'en'], 'portraitAsset': 'portrait',
+                'profile': home['profile'], 'education': {key: value for key, value in home['education'].items() if key not in ('courses', 'coursework')},
+                'interests': home['interests'], 'contact': {'csdn': config.get('csdn', '')}}
+
+    @app.get('/content/projects')
+    def projects_content(session: CurrentUser, locale: Annotated[str, Query(pattern=r'^(en|zh)$')] = 'en') -> dict:
+        config = load_content(settings.content_dir)
+        return {'projects': [project_view(project, locale, session['user']['role'] == 'admin') for project in config['projects']]}
+
+    @app.get('/content/projects/{slug}')
+    def one_project_content(slug: str, session: CurrentUser, locale: Annotated[str, Query(pattern=r'^(en|zh)$')] = 'en') -> dict:
+        config = load_content(settings.content_dir)
+        for project in config['projects']:
+            if project.get('slug') == slug:
+                return {'project': project_view(project, locale, session['user']['role'] == 'admin')}
+        raise HTTPException(404, 'Project not found.')
+
+    @app.get('/content/assets/{asset_id}')
+    def content_asset(asset_id: str, _session: CurrentUser):
+        config = load_content(settings.content_dir)
+        return FileResponse(asset_path(settings.content_dir, config, asset_id), headers={'Cache-Control': 'private, no-store', 'Vary': 'Authorization'})
 
     @app.get('/profile/links/github')
     def github_profile(_session: CurrentUser) -> dict:
-        return {'url': 'https://github.com/WenYuecheng'}
+        return {'url': load_content(settings.content_dir)['github']}
 
     @app.get('/projects/{slug}/links/{key}')
     def project_link(slug: str, key: str, _session: CurrentUser) -> dict:
-        url = PROJECT_LINKS.get((slug, key))
+        url = load_content(settings.content_dir).get('projectLinks', {}).get(slug, {}).get(key)
         if not url:
             raise HTTPException(404, 'Link not found.')
         return {'url': url}

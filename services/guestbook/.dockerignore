@@ -3,3 +3,4 @@
 !requirements.txt
 !Dockerfile
 !mail_template.py
+!private_content.py

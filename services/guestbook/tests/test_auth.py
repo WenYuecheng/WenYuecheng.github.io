@@ -11,7 +11,15 @@ from app import Settings, create_app
 
 @pytest.fixture
 def preview(tmp_path):
-    return Settings(db_path=tmp_path / 'db.sqlite3', development=True, mail_mode='file',
+    content_dir = tmp_path / 'private'
+    content_dir.mkdir()
+    (content_dir / 'content.json').write_text(json.dumps({
+        'identity': {'en': 'Owner Example', 'zh': '示例作者'},
+        'home': {locale: {'profile': {}, 'education': {}, 'interests': []} for locale in ('en', 'zh')},
+        'projects': [], 'assets': {}, 'github': 'https://github.com/example',
+        'projectLinks': {'weyra': {'github': 'https://github.com/example/project'}}
+    }))
+    return Settings(db_path=tmp_path / 'db.sqlite3', content_dir=content_dir, development=True, mail_mode='file',
                     dev_mailbox=True, outbox_path=tmp_path / 'outbox.json', admin_email='owner@example.com')
 
 
@@ -44,7 +52,7 @@ def test_config_and_verification_moderation_flow(preview, now):
         assert c.get('/messages').json() == {'messages': []}
         assert c.get('/messages/mine', headers=headers).json()['messages'] == [item]
         assert c.get('/admin/messages', headers=headers).status_code == 403
-        assert c.get('/projects/weyra/links/github', headers=headers).json() == {'url': 'https://github.com/WenYuecheng/Weyra'}
+        assert c.get('/projects/weyra/links/github', headers=headers).json() == {'url': 'https://github.com/example/project'}
         assert c.get('/projects/weyra/links/unknown', headers=headers).status_code == 404
         other = login(c, 'other@university.edu')
         assert c.get('/messages/mine', headers={'Authorization': 'Bearer ' + other['token']}).json() == {'messages': []}
@@ -332,7 +340,7 @@ def test_mailbox_rejects_invalid_or_nonlocal_host(preview, host):
 
 
 def test_owner_can_sign_in_without_nickname_and_profile_link_requires_session(preview):
-    configured = replace(preview, admin_email='wyc041110@qq.com')
+    configured = replace(preview, admin_email='owner@example.com')
     with TestClient(create_app(configured), base_url='http://localhost', client=('127.0.0.1', 8000)) as c:
         assert c.get('/profile/links/github').status_code == 401
         sent = c.post('/auth/request-code', json={'email': configured.admin_email}).json()
@@ -341,10 +349,10 @@ def test_owner_can_sign_in_without_nickname_and_profile_link_requires_session(pr
         assert response.status_code == 200
         session = response.json()
         assert session['user']['role'] == 'admin'
-        assert session['user']['nickname'] == 'Yuecheng Wen'
+        assert session['user']['nickname'] == 'Owner Example'
         headers = {'Authorization': 'Bearer ' + session['token']}
         assert c.get('/admin/messages', headers=headers).status_code == 200
-        assert c.get('/profile/links/github', headers=headers).json() == {'url': 'https://github.com/WenYuecheng'}
+        assert c.get('/profile/links/github', headers=headers).json() == {'url': 'https://github.com/example'}
         assert c.get('/profile/links/github', headers={'Authorization': 'Bearer invalid'}).status_code == 401
 
 
@@ -355,11 +363,11 @@ def test_existing_owner_session_has_canonical_name_without_reverification(previe
         with sqlite3.connect(configured.db_path) as db:
             db.execute('UPDATE users SET nickname=? WHERE email=?', ('A visitor', configured.admin_email))
             db.execute('INSERT INTO messages(id,name,message,created_at,user_id,status) VALUES (?,?,?,?,?,?)',
-                       ('owner-old', '\u6e29\u60a6\u6210', 'An older owner note.', '2026-10-27T00:00:00Z', owner['user']['id'], 'approved'))
+                       ('owner-old', 'Old owner name', 'An older owner note.', '2026-10-27T00:00:00Z', owner['user']['id'], 'approved'))
         response = c.get('/auth/me', headers={'Authorization': 'Bearer ' + owner['token']})
-        assert response.json()['user']['nickname'] == 'Yuecheng Wen'
-        assert c.get('/messages?page=1').json()['messages'][0]['name'] == 'Yuecheng Wen'
-        assert c.get('/messages/mine', headers={'Authorization': 'Bearer ' + owner['token']}).json()['messages'][0]['name'] == 'Yuecheng Wen'
+        assert response.json()['user']['nickname'] == 'Owner Example'
+        assert c.get('/messages?page=1').json()['messages'][0]['name'] == 'Eugene'
+        assert c.get('/messages/mine', headers={'Authorization': 'Bearer ' + owner['token']}).json()['messages'][0]['name'] == 'Owner Example'
 
 
 def test_verification_template_is_safe_and_has_matching_plain_text():

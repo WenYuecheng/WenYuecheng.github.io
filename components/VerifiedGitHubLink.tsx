@@ -12,7 +12,7 @@ export function VerifiedGitHubLink({locale,children,className='',ariaLabel}:{loc
   setBusy(true);setError('');
   try{
    const result=await auth.api<{url:string}>('/profile/links/github',{authenticated:true});
-   const url=new URL(result.url);if(url.protocol!=='https:'||url.hostname!=='github.com'||url.pathname!=='/WenYuecheng')throw Error('Invalid profile destination');
+   const url=new URL(result.url);if(url.protocol!=='https:'||url.hostname!=='github.com'||!/^\/[A-Za-z0-9-]+\/?$/.test(url.pathname))throw Error('Invalid profile destination');
    window.location.assign(url.href);
   }catch(e){if(e instanceof ApiError&&e.status===401)signIn();else setError(accountError(e,locale));setBusy(false);}
  }

@@ -1,6 +1,8 @@
 import {test,expect} from '@playwright/test';
+import {privateAccount} from './private-fixture';
 test.beforeEach(async({page})=>{await page.route('**/opening/scene.json',r=>r.fulfill({json:{enabled:false}}));});
 for(const theme of ['light','dark'])test(`${theme} envelope opens and scenic surfaces span their sections`,async({page},info)=>{
+ await privateAccount(page);
  await page.addInitScript(theme=>localStorage.setItem('yuecheng-theme',theme),theme);
  await page.goto('/zh/');
  await expect(page.locator('.hero-envelope')).toBeVisible();

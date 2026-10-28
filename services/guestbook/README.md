@@ -132,7 +132,7 @@ The namespace smoke uses disposable containers with networking disabled; seeded
 test-only users exercise production route exclusion and loopback proxy handling.
 Neither smoke sends email or contacts the live Caddy/application containers.
 
-## Production configuration (deployment requires separate approval)
+## Production configuration
 
 The Compose file retains its existing Caddy shared network namespace,
 `127.0.0.1:8093` binding, persistent volume, UID/GID 10001, read-only root,
@@ -143,6 +143,7 @@ Configure via private environment, never committed defaults:
 
 | Environment | Meaning |
 | --- | --- |
+| `PORTAL_CONTENT_DIR` | Absolute private directory containing `content.json` and image assets; Compose mounts it read-only |
 | `PORTAL_ADMIN_EMAIL` | Exact administrator mailbox; empty means no admin |
 | `PORTAL_MAIL_MODE` | Production `smtp`; local preview `file` |
 | `PORTAL_SMTP_HOST` / `PORTAL_SMTP_PORT` | SMTP endpoint; port defaults to 587 |
@@ -170,3 +171,63 @@ The database contains private email addresses and moderation history; backups
 need the same access controls. Routine maintenance/retention for user and audit
 records remains an operator policy, while expired sessions/challenges/outbox and
 rate events are pruned during requests.
+
+
+## Private portfolio content
+
+Keep the content directory outside the repository and static export. Set
+`PORTAL_CONTENT_DIR` to its absolute host path before running Compose. The service
+mounts this directory at `/private-content` read-only; its UID/GID 10001 needs
+read permission on the JSON and images and traversal permission on directories.
+Do not put mail credentials, session tokens, or other secrets in this content file.
+
+`content.json` contains these keys (all values below are generic examples):
+
+```json
+{
+  "identity": {"en": "Owner Example", "zh": "示例作者"},
+  "home": {
+    "en": {"profile": {}, "education": {"values": []}, "interests": []},
+    "zh": {"profile": {}, "education": {"values": []}, "interests": []}
+  },
+  "projects": [],
+  "assets": {"portrait": "assets/portrait.webp"},
+  "github": "https://github.com/example",
+  "csdn": "https://blog.csdn.net/example",
+  "projectLinks": {"sample": {"github": "https://github.com/example/project"}}
+}
+```
+
+Each project has `slug`, `tags`, `coverAsset`, `backdrop`, `accent`, `links`,
+`en`, and `zh`. Each localized object provides `title`, `kicker`, `summary`,
+and `description`. Only administrators receive optional `role`, `architecture`,
+`features`, `stages`, and `walkthrough` fields. Members receive the four basic
+copy fields. Project metrics, notes, scope, courses, and coursework are excluded
+from the content responses. The `links` array contains labels and keys; actual
+destinations remain in the private `projectLinks` mapping.
+
+`GET /content/home?locale=en|zh` requires a valid bearer and returns `name`,
+`portraitAsset`, `profile`, `education`, `interests`, and `contact: {csdn}`.
+`GET /content/projects?locale=en|zh` returns `{projects: [...]}` and
+`GET /content/projects/{slug}?locale=en|zh` returns `{project: ...}` with the
+server-derived role projection. No query or browser role controls authorization.
+`GET /content/assets/{id}` requires a bearer; only `portrait`, `weyra`,
+`solaceai`, and `emblem` IDs are allowed. Configured paths must resolve to image files inside
+the content directory, including when symlinks are involved.
+
+The application can start without private content so existing authentication and
+registration remain available. Content configuration is validated when read;
+missing, unreadable, or invalid configuration returns a generic 503 without any
+embedded public fallback. Check an authenticated content request after startup
+as the deployment readiness check. `/health` checks database readiness only.
+All content responses use `Cache-Control: private, no-store`; all other API
+responses, including optional-bearer `/messages`, use `Cache-Control: no-store`.
+Responses vary on Authorization. Logout invalidates the token for subsequent
+content and image requests.
+
+`GET /messages?locale=en|zh` accepts an optional bearer. Owner-authored message
+names use Eugene for anonymous viewers, the configured English identity for
+members, and the requested configured locale for administrators. Other authors
+retain their chosen names. `/auth/me?locale=en|zh` also localizes the owner's
+account nickname. Existing accounts, messages, and educational registration
+remain intact.

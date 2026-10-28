@@ -11,7 +11,7 @@ test('audio error clears after confirmed retry playback',async({page},info)=>{
  const root=process.cwd(),fixture=await mkdtemp(join(root,'.superpowers/audio-fixture-'));
  const require=createRequire(import.meta.resolve('vitest/package.json'));
  const {createServer}=await import(pathToFileURL(require.resolve('vite')).href);
- await writeFile(join(fixture,'index.html'),'<html><body><div id="root"></div><script type="module" src="/entry.tsx"></script></body></html>');
+ await writeFile(join(fixture,'index.html'),'<html><body><audio id="site-audio" src="/test-track.mp3"></audio><div id="root"></div><script type="module" src="/entry.tsx"></script></body></html>');
  await writeFile(join(fixture,'entry.tsx'),`
   import React from 'react';
   import {createRoot} from 'react-dom/client';

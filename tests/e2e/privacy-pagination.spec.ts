@@ -2,28 +2,9 @@ import {test,expect} from '@playwright/test';
 
 test.beforeEach(async({page})=>{await page.route('**/opening/scene.json',r=>r.fulfill({json:{enabled:false}}));});
 
-test('both languages use the English owner name and a single education card with eight percent rank',async({page})=>{
- for(const path of ['/','/zh/']){
-  await page.goto(path);
-  await expect(page.locator('.hero-signature')).toHaveText(/Yuecheng Wen/);
-  await expect(page.locator('.wordmark')).toContainText('Yuecheng Wen');
-  await expect(page.locator('body')).not.toContainText('温悦成');
-  expect(await page.content()).not.toContain('温悦成');
-  await expect(page.locator('.academic-metrics strong').nth(2)).toHaveText('8%');
-  await expect(page.locator('.education-card')).toHaveCount(1);
-  await expect(page.locator('.recognition-card')).toHaveCount(0);
-  await expect(page.locator('.education-layout')).not.toContainText(/奖学金|竞赛|26\/320|Scholarship/);
-  const card=(await page.locator('.education-card').boundingBox())!;
-  const available=await page.locator('.education-layout').evaluate(el=>{const s=getComputedStyle(el);return el.clientWidth-parseFloat(s.paddingLeft)-parseFloat(s.paddingRight);});
-  expect(Math.abs(card.width-available)).toBeLessThan(2);
-  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
- }
- for(const width of [320,390]){
-  await page.setViewportSize({width,height:740});
-  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-  const brand=(await page.locator('.wordmark').boundingBox())!,tools=(await page.locator('.nav-tools').boundingBox())!;
-  expect(brand.x+brand.width).toBeLessThanOrEqual(tools.x);
- }
+test('both anonymous languages keep education private and a public identity',async({page})=>{
+ for(const path of ['/','/zh/']){await page.goto(path);await expect(page.locator('.hero-signature')).toContainText('Eugene');await expect(page.locator('.wordmark')).toContainText('Eugene');await expect(page.locator('.academic-metrics')).toHaveCount(0);await expect(page.locator('.selected-projects')).toHaveCount(0);}
+ for(const width of [320,390]){await page.setViewportSize({width,height:740});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
 });
 
 test('wall pages keep older messages accessible and long words wrap on narrow screens',async({page})=>{

@@ -11,10 +11,13 @@ import { RouteScenery } from './RouteScenery';
 import { ClickEffect } from './ClickEffect';
 import { VerifiedGitHubLink } from './VerifiedGitHubLink';
 import { Companion } from './Companion';
+import {useIdentity} from './PrivateContent';
+import {useAuth} from './Auth';
 
 function readPreference(key:string) { try { return localStorage.getItem(key); } catch { return null; } }
 function savePreference(key:string,value:string) { try { localStorage.setItem(key,value); } catch { /* Private browsing still gets a functioning page. */ } }
 export function Shell({children}:{children:ReactNode}) {
+ const {name,home}=useIdentity(); const auth=useAuth();
  const pathname=usePathname(); const locale:Locale=pathname.startsWith('/zh')?'zh':'en'; const t=content[locale];
  const [dark,setDark]=useState(false),[motion,setMotion]=useState(true),[menu,setMenu]=useState(false);
  useEffect(()=>{setDark(readPreference('yuecheng-theme')==='dark');setMotion(readPreference('yuecheng-motion')!=='off');},[]);
@@ -33,7 +36,7 @@ export function Shell({children}:{children:ReactNode}) {
   <div className="ambient-paper" aria-hidden="true" />
   <Atmosphere />
   <header className="site-header"><div className="nav-inner">
-   <Link href={routeFor(locale)} className="wordmark"><span className="wordmark-orbit">✦</span><span>{site.name}<span className="wordmark-dot">.</span></span><small>{t.tagline}</small></Link>
+   <Link href={routeFor(locale)} className="wordmark"><span className="wordmark-orbit">✦</span><span>{name}<span className="wordmark-dot">.</span></span><small>{t.tagline}</small></Link>
    <nav className={`main-nav ${menu?'is-open':''}`} aria-label={locale==='zh'?'主导航':'Main navigation'}>{links.map(({key,path})=><Link key={key} href={routeFor(locale,path)} onClick={()=>setMenu(false)} className={path==='/'?normalized==='/'?'active':'':normalized.startsWith(path)?'active':''} aria-current={(path==='/'?normalized==='/':normalized.startsWith(path))?'page':undefined}>{t.nav[key]}</Link>)}</nav>
    <div className="nav-tools"><AccountNav locale={locale}/><Link className="language-control" href={routeFor(locale==='en'?'zh':'en',pathname)} hrefLang={locale==='en'?'zh-CN':'en'}>{t.controls.language}</Link><span className="tool-divider" />
     <button className="icon-button" title={t.controls.motion} aria-label={t.controls.motion} aria-pressed={motion} onClick={()=>{savePreference('yuecheng-motion',motion?'off':'on');setMotion(!motion);}}><Sparkles size={17}/></button>
@@ -42,7 +45,7 @@ export function Shell({children}:{children:ReactNode}) {
    </div>
   </div></header>
   {children}
-  <footer className="site-footer"><div className="footer-star">✦</div><p>{t.footer}</p><div className="footer-links"><Link href={routeFor(locale,'/projects/')}>{t.nav.projects}</Link><Link href={routeFor(locale,'/contact/')}>{t.nav.contact}</Link><Link href={routeFor(locale,'/guestbook/')}>{locale==='zh'?'留言墙':'Message wall'}</Link><VerifiedGitHubLink locale={locale}>GitHub <ArrowUpRight size={12}/></VerifiedGitHubLink></div><small>© {new Date().getFullYear()} {t.rights}</small></footer>
+  <footer className="site-footer"><div className="footer-star">✦</div><p>{t.footer}</p><div className="footer-links"><Link href={routeFor(locale,'/projects/')}>{t.nav.projects}</Link><Link href={routeFor(locale,'/contact/')}>{t.nav.contact}</Link><Link href={routeFor(locale,'/guestbook/')}>{locale==='zh'?'留言墙':'Message wall'}</Link>{home&&<VerifiedGitHubLink locale={locale}>GitHub <ArrowUpRight size={12}/></VerifiedGitHubLink>}<Link href={routeFor(locale,'/privacy/')}>{locale==='zh'?'隐私说明':'Privacy'}</Link></div><small>© {new Date().getFullYear()} {name}</small></footer>
   <BackgroundMusic locale={locale}/>
   <Companion locale={locale}/>
   </div>
@@ -54,7 +57,7 @@ export function BackgroundMusic({locale}:{locale:Locale}) {
  const [playing,setPlaying]=useState(false),[hint,setHint]=useState(false),[blocked,setBlocked]=useState(false),[failed,setFailed]=useState(false);
  const requestPlayback=useCallback(async(reload=false)=>{
   const element=audio.current;if(!element)return;
-  userPaused.current=false;
+  userPaused.current=false; element.dataset.userPaused='0';
   if(reload||element.error)element.load();
   try{await element.play();setBlocked(false);}
   catch(error){
@@ -65,9 +68,13 @@ export function BackgroundMusic({locale}:{locale:Locale}) {
   }
  },[]);
  useEffect(()=>{
+  audio.current=document.getElementById('site-audio') as HTMLAudioElement|null;
   if(audio.current)audio.current.volume=music.volume;
   // Every new visit starts enabled; a pause survives internal page changes.
-  if(track&&music.autoPlay)void requestPlayback();
+  const a=audio.current;if(!a)return;
+  const sync=()=>{setPlaying(!a.paused);setBlocked(a.dataset.blocked==='1');setFailed(!!a.error);};
+  const onPlay=()=>{setPlaying(true);setFailed(false);setBlocked(false);};const onPause=()=>setPlaying(false);const onError=()=>{setFailed(true);setPlaying(false);};
+  sync();a.addEventListener('play',onPlay);a.addEventListener('pause',onPause);a.addEventListener('error',onError);const observer=new MutationObserver(()=>setBlocked(a.dataset.blocked==='1'));observer.observe(a,{attributes:true,attributeFilter:['data-blocked']});return()=>{a.removeEventListener('play',onPlay);a.removeEventListener('pause',onPause);a.removeEventListener('error',onError);observer.disconnect();};
  },[track,requestPlayback]);
  useEffect(()=>{
   if(!blocked||!track||failed)return;
@@ -83,11 +90,11 @@ export function BackgroundMusic({locale}:{locale:Locale}) {
  },[blocked,failed,track,requestPlayback]);
  const toggle=()=>{
   if(!track){setHint(!hint);return;}
-  if(playing){userPaused.current=true;audio.current?.pause();}
+  if(playing){userPaused.current=true;if(audio.current)audio.current.dataset.userPaused='1';audio.current?.pause();}
   else void requestPlayback(failed);
  };
  return <div className={`music-widget ${playing?'is-playing':''}`}>
-  {track&&<audio ref={audio} src={track.src} loop preload="metadata" onPlay={()=>{setPlaying(true);setFailed(false);setBlocked(false);}} onPause={()=>setPlaying(false)} onError={()=>{setFailed(true);setPlaying(false);}}/>}
+
   <button className="music-toggle" aria-label={track?(playing?t.pause:t.play):t.noMusic} onClick={toggle} aria-pressed={playing}><span className="mini-record">{track?(playing?<Pause size={15}/>:<Play size={15}/>):<Music2 size={16}/>}</span><span className="music-copy"><strong>{failed?t.audioError:track?.title||t.music}</strong><small>{failed?t.audioError:track?(blocked?t.blocked:track.artist):t.noMusic}</small></span>{playing?<span className="audio-bars"><i/><i/><i/></span>:<Waves size={17} className="music-wave"/>}</button>
   {hint&&!track&&<p className="music-hint" role="status">{t.noMusicHint}</p>}
  </div>;

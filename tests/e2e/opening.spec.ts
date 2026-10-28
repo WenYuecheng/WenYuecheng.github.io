@@ -37,13 +37,13 @@ test('motion preference and image failure never block the site',async({page})=>{
  expect(await page.locator('.site-experience').evaluate(el=>(el as HTMLElement).inert)).toBe(false);
 });
 
-test('real artwork shows the personal domain without technical keywords and can replay',async({page},info)=>{
+test('real artwork shows the public identity without technical keywords and can replay',async({page},info)=>{
  await page.goto('/zh/?intro=preview');await expect(page.locator('.opening-scene')).toBeVisible();
- await expect(page.locator('.opening-site-title')).toHaveText('wenyuecheng.cn');
+ await expect(page.locator('.opening-site-title')).toHaveText('Eugene');
  await expect(page.locator('.opening-title-block')).not.toContainText(/Agent|RSI|PEFT|DeepSeek/);
  for(const frame of await page.locator('.opening-portrait img').all())expect(await frame.evaluate(el=>(el as HTMLImageElement).naturalWidth)).toBeGreaterThan(1000);
  await page.waitForTimeout(3600);await page.screenshot({path:`test-results/elf-opening-${info.project.name}.png`});
- await page.getByRole('button',{name:'跳过动画'}).click();await page.reload();await expect(page.locator('.opening-scene')).toBeVisible();
+ await page.keyboard.press('Escape');await expect(page.locator('.opening-scene')).toHaveCount(0);await page.reload();await expect(page.locator('.opening-scene')).toBeVisible();
 });
 
 test('eye light stays on the cropped iris and reveals outward while the character moves',async({page})=>{

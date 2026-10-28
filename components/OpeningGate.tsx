@@ -1,3 +1,4 @@
+import {OpeningSound} from './EarlyAudio';
 import config from '../public/opening/scene.json';
 import {parseOpeningScene} from '../lib/opening';
 
@@ -38,6 +39,6 @@ observer.observe(root,{attributes:true,attributeFilter:['data-opening']});
 
 export function OpeningGate(){return <div id="opening-bootstrap" role="status" aria-live="polite">
  <div className="opening-bootstrap-halo" aria-hidden="true"/>
- <div className="opening-bootstrap-copy"><strong>wenyuecheng.cn</strong><p><span className="opening-bootstrap-en">Follow the light into my world.</span><span className="opening-bootstrap-zh">循着微光，走进我的世界。</span></p><div className="opening-bootstrap-line" aria-hidden="true"/></div>
+ <div className="opening-bootstrap-copy"><strong>Eugene</strong><p><span className="opening-bootstrap-en">Follow the light into my world.</span><span className="opening-bootstrap-zh">循着微光，走进我的世界。</span></p><div className="opening-bootstrap-line" aria-hidden="true"/></div>
  <button type="button" id="opening-bootstrap-skip"><span className="opening-bootstrap-en">Skip intro</span><span className="opening-bootstrap-zh">跳过动画</span></button>
  </div>;}
