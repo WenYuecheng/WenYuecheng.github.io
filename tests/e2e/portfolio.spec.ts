@@ -3,7 +3,7 @@ import {privateAccount} from './private-fixture';
 test.beforeEach(async({page})=>{await page.route('**/opening/scene.json',r=>r.fulfill({json:{enabled:false}}));});
 test('bilingual public home, avatar and protected profile',async({page},info)=>{
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto('/zh/');await expect(page.locator('h1')).toContainText('时来天地皆同力');
+ await page.goto('/zh/');await expect(page.locator('h1')).toContainText('窗外是佛罗伦萨');
  await expect(page.getByAltText('Eugene 的白狐头像')).toBeVisible();
  await expect(page.locator('.academic-metrics')).toHaveCount(0);
  await expect(page.locator('.project-card')).toHaveCount(0);
@@ -15,7 +15,7 @@ test('bilingual public home, avatar and protected profile',async({page},info)=>{
  await page.getByRole('button',{name:'切换日夜主题'}).click();await expect(page.locator('html')).toHaveClass('dark');
  await page.screenshot({path:`test-results/home-${info.project.name}-dark.png`,fullPage:true});
  await page.getByRole('button',{name:'开关背景动效'}).click();await expect(page.locator('html')).toHaveAttribute('data-motion','off');
- await page.getByRole('link',{name:'English',exact:true}).click();await expect(page).toHaveURL(/\/$/);await expect(page.locator('h1')).toContainText('With fortune');
+ await page.getByRole('link',{name:'English',exact:true}).click();await expect(page).toHaveURL(/\/$/);await expect(page.locator('h1')).toContainText('Outside the window is Florence');
  await expect(page.locator('html')).toHaveClass('dark');expect(errors).toEqual([]);
 });
 test('administrator project list and walkthrough use protected content',async({page},info)=>{

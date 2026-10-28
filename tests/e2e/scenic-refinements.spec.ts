@@ -28,7 +28,7 @@ test('reduced motion keeps the envelope still and the letter readable',async({pa
  await page.emulateMedia({reducedMotion:'reduce'});await page.goto('/zh/');
  await page.evaluate(()=>scrollTo({top:300,behavior:'instant'}));
  await expect(page.locator('.envelope-flap')).toHaveCSS('transform','none');
- await expect(page.locator('.hero h1')).toContainText('时来天地皆同力');
+ await expect(page.locator('.hero h1')).toContainText('窗外是佛罗伦萨');
 });
 
 test('hero actions, scroll prompt and envelope remain separated at short desktop heights',async({page})=>{
@@ -36,6 +36,7 @@ test('hero actions, scroll prompt and envelope remain separated at short desktop
   await page.setViewportSize({width,height});
   for(const locale of ['/','/zh/']){
    await page.goto(locale);await page.evaluate(()=>document.fonts.ready);
+   expect(await page.locator('.hero h1 span').evaluateAll(lines=>lines.every(line=>line.scrollWidth<=line.clientWidth+1)),`${width} ${locale}: the complete quote must remain inside the hero`).toBe(true);
    const gap=await page.evaluate(()=>{
     const actions=document.querySelector('.hero-actions')!.getBoundingClientRect();
     const prompt=document.querySelector('.hero-scroll')!.getBoundingClientRect();

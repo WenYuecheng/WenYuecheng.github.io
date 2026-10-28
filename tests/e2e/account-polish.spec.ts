@@ -14,7 +14,7 @@ test('public copy is simplified and personal GitHub buttons require verification
 });
 test('administrator leaves nickname blank and goes directly to moderation',async({page})=>{
  await page.route('**/auth/request-code',r=>r.fulfill({json:{challengeId:'current-challenge',resendAfter:0,deliveryMode:'smtp'}}));
- await page.route('**/auth/verify',r=>{expect(r.request().postDataJSON().nickname).toBe('');return r.fulfill({json:{token,expiresAt,user:{id:'owner',nickname:'A visitor',email:'owner@example.edu',role:'admin'}}});});
+ await page.route('**/auth/verify',r=>{expect(r.request().postDataJSON()).not.toHaveProperty('nickname');return r.fulfill({json:{token,expiresAt,user:{id:'owner',nickname:'A visitor',email:'owner@example.edu',role:'admin'}}});});
  await page.route('**/admin/messages?*',r=>r.fulfill({json:{messages:[]}}));
  await page.goto('/zh/auth/');await page.locator('input[type=email]').fill('owner@example.edu');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'发送验证码'}).click();await page.getByLabel('邮箱验证码').fill('123456');await page.getByRole('button',{name:'验证并登录'}).click();await expect(page).toHaveURL('/zh/admin/');
  await page.locator('.account-control').click();await expect(page.locator('.auth-card h2')).toHaveText('Eugene');

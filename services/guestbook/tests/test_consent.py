@@ -2,7 +2,7 @@ import sqlite3
 from fastapi.testclient import TestClient
 from app import create_app
 from test_auth import preview
-VERSION='2026-10-28.1'
+VERSION='2026-10-28.2'
 ACCEPT={'privacyAccepted':True,'privacyVersion':VERSION}
 
 def test_server_requires_current_explicit_consent_and_records_it(preview):

@@ -39,7 +39,7 @@ DEVELOPMENT_ORIGINS = (
     "http://localhost:4321", "http://localhost:3000",
     "http://127.0.0.1:4321", "http://127.0.0.1:3000",
 )
-PRIVACY_VERSION = "2026-10-28.1"
+PRIVACY_VERSION = "2026-10-28.2"
 MAX_BODY_BYTES = 8192
 
 
@@ -259,13 +259,41 @@ def initialize(settings: Settings) -> bytes:
                 UNIQUE(user_id, request_id)
             );
             CREATE INDEX IF NOT EXISTS feedback_daily ON feedback_reports(user_id,day);
+            CREATE TABLE IF NOT EXISTS visitor_aliases (
+                user_id TEXT PRIMARY KEY, number TEXT NOT NULL UNIQUE
+            );
             CREATE TABLE IF NOT EXISTS review_audit (
                 id INTEGER PRIMARY KEY, message_id TEXT NOT NULL, actor_id TEXT NOT NULL,
                 reviewed_at TEXT NOT NULL, from_status TEXT NOT NULL, to_status TEXT NOT NULL
             );
         """)
+        for row in db.execute('SELECT * FROM users').fetchall():
+            if row['email'] != settings.admin_email.strip().lower():
+                assign_visitor_name(db, salt, row)
     settings.db_path.chmod(0o600)
     return salt
+
+
+def assign_visitor_name(db: sqlite3.Connection, salt: bytes, row) -> str:
+    alias = db.execute('SELECT number FROM visitor_aliases WHERE user_id=?', (row['id'],)).fetchone()
+    if alias:
+        number = alias['number']
+    else:
+        nonce = 0
+        while True:
+            value = digest(salt, 'visitor-name', row['email'] + '\0' + str(nonce))
+            number = str(10000000 + int(value, 16) % 90000000)
+            if not db.execute('SELECT 1 FROM visitor_aliases WHERE number=?', (number,)).fetchone():
+                break
+            nonce += 1
+        db.execute('INSERT INTO visitor_aliases VALUES (?,?)', (row['id'], number))
+    name = 'Visitor ' + number
+    db.execute('UPDATE users SET nickname=? WHERE id=?', (name, row['id']))
+    return name
+
+
+def visitor_name(name: str, locale: str = 'en') -> str:
+    return ('访客' + name[8:]) if locale == 'zh' and re.fullmatch(r'Visitor \d{8}', name) else name
 
 
 def peer_key(request: Request, settings: Settings, salt: bytes) -> str:
@@ -500,7 +528,8 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
     app.add_middleware(RequestBoundary, origins=origins)
     app.add_middleware(CORSMiddleware, allow_origins=list(origins), allow_methods=['GET', 'POST'],
                        allow_headers=['Content-Type', 'Authorization'], expose_headers=['Retry-After'],
-                       allow_credentials=False, max_age=600)
+                       allow_credentials=True, max_age=600)
+    cookie_name = 'eugene_session' if settings.development else '__Host-eugene_session'
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(_request: Request, _error: RequestValidationError) -> JSONResponse:
@@ -523,13 +552,20 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
             return 'Eugene'
 
     def user_view(row, locale: str = 'en') -> dict:
-        return {'id': row['id'], 'nickname': owner_name(locale) if row['email'] == admin_email else row['nickname'], 'email': row['email'],
+        return {'id': row['id'], 'nickname': owner_name(locale) if row['email'] == admin_email else visitor_name(row['nickname'], locale), 'email': row['email'],
                 'role': 'admin' if row['email'] == admin_email else 'user'}
 
     def authenticated(request: Request) -> dict:
         authorization = request.headers.get('authorization', '')
         scheme, _, token = authorization.partition(' ')
-        if scheme.lower() != 'bearer' or not token or len(token) > 256:
+        if authorization:
+            if scheme.lower() != 'bearer':
+                raise HTTPException(401, 'Sign in to continue.')
+        else:
+            token = request.cookies.get(cookie_name, '')
+            if token and request.method not in ('GET', 'HEAD', 'OPTIONS') and request.headers.get('origin') not in origins:
+                raise HTTPException(403, 'A trusted origin is required.')
+        if not token or len(token) > 256:
             raise HTTPException(401, 'Sign in to continue.')
         token_hash = digest(app.state.salt, 'session', token)
         with connect(settings.db_path) as db:
@@ -594,7 +630,7 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
         return {'challengeId': challenge, 'expiresIn': 600, 'resendAfter': 60, 'deliveryMode': 'local' if settings.mail_mode == 'file' else 'smtp'}
 
     @app.post('/auth/verify')
-    def verify(payload: VerifyInput, request: Request):
+    def verify(payload: VerifyInput, request: Request, response: Response):
         if payload.privacyAccepted is not True or payload.privacyVersion != PRIVACY_VERSION:
             raise HTTPException(422, 'Please read and agree to the current privacy agreement.')
         timestamp = clock().timestamp()
@@ -621,13 +657,18 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
             if not hmac.compare_digest(actual, row['code_hash']):
                 return JSONResponse({'error': 'Code is invalid or expired.'}, status_code=400)
             db.execute('UPDATE challenges SET invalidated=1 WHERE id=?', (row['id'],))
-            db.execute('INSERT OR IGNORE INTO users VALUES (?, ?, ?)', (uuid.uuid4().hex, row['email'], 'Eugene' if row['email'] == admin_email else payload.nickname or 'A visitor'))
+            db.execute('INSERT OR IGNORE INTO users VALUES (?, ?, ?)', (uuid.uuid4().hex, row['email'], 'Eugene'))
             user = db.execute('SELECT * FROM users WHERE email=?', (row['email'],)).fetchone()
+            if row['email'] != admin_email:
+                assign_visitor_name(db, app.state.salt, user)
+                user = db.execute('SELECT * FROM users WHERE email=?', (row['email'],)).fetchone()
             db.execute('INSERT OR IGNORE INTO user_consents VALUES (?,?,?,?)',(user['id'],PRIVACY_VERSION,PRIVACY_VERSION,timestamp))
             token = secrets.token_urlsafe(32)
             db.execute('DELETE FROM sessions WHERE expires_at<=?', (timestamp,))
             db.execute('INSERT INTO sessions VALUES (?, ?, ?)', (digest(app.state.salt, 'session', token), user['id'], timestamp + 28800))
             result = {'token': token, 'expiresAt': iso(timestamp + 28800), 'user': user_view(user)}
+        response.set_cookie(cookie_name, token, max_age=28800, httponly=True,
+                            secure=not settings.development, samesite='lax', path='/')
         return result
 
     @app.get('/auth/me')
@@ -638,7 +679,9 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
     def logout(_payload: StrictInput, session: CurrentUser) -> Response:
         with connect(settings.db_path) as db:
             db.execute('DELETE FROM sessions WHERE token_hash=?', (session['token_hash'],))
-        return Response(status_code=204)
+        response = Response(status_code=204)
+        response.delete_cookie(cookie_name, path='/', secure=not settings.development, httponly=True, samesite='lax')
+        return response
 
     if settings.dev_mailbox:
         @app.get('/dev/mailbox')
@@ -664,7 +707,8 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
 
     def message_view(row, private: bool = False, admin: bool = False, viewer: str = 'anonymous', locale: str = 'en') -> dict:
         owner = 'email' in row.keys() and row['email'] == admin_email
-        item = {'id': row['id'], 'name': owner_name(locale, viewer) if owner else row['name'], 'message': row['message'], 'createdAt': row['created_at']}
+        nickname = row['account_nickname'] if 'account_nickname' in row.keys() and row['account_nickname'] else row['name']
+        item = {'id': row['id'], 'name': owner_name(locale, viewer) if owner else visitor_name(nickname, locale), 'message': row['message'], 'createdAt': row['created_at']}
         if private:
             item['status'] = row['status']
         if admin:
@@ -676,7 +720,7 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
     @app.get('/messages', response_model=MessagePage, response_model_exclude_none=True)
     def list_messages(request: Request, locale: Annotated[str, Query(pattern=r'^(en|zh)$')] = 'en', page: Annotated[int | None, Query(ge=1, le=100000)] = None,
                       page_size: Annotated[int, Query(alias='pageSize', ge=1, le=24)] = 12) -> dict:
-        viewer = authenticated(request)['user']['role'] if request.headers.get('authorization') else 'anonymous'
+        viewer = authenticated(request)['user']['role'] if request.headers.get('authorization') or request.cookies.get(cookie_name) else 'anonymous'
         with connect(settings.db_path) as db:
             db.execute('BEGIN')
             # Keep old clients compatible; the new website always requests explicit pages.
@@ -684,7 +728,7 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
             pages = max(1, math.ceil(total / page_size))
             current = min(page, pages) if page is not None else 1
             limit = page_size if page is not None else 60
-            rows = db.execute("SELECT messages.*,users.email FROM messages LEFT JOIN users ON users.id=messages.user_id WHERE status='approved' ORDER BY messages.created_at DESC,messages.rowid DESC LIMIT ? OFFSET ?",
+            rows = db.execute("SELECT messages.*,users.email,users.nickname AS account_nickname FROM messages LEFT JOIN users ON users.id=messages.user_id WHERE status='approved' ORDER BY messages.created_at DESC,messages.rowid DESC LIMIT ? OFFSET ?",
                               (limit, (current - 1) * page_size)).fetchall()
         result = {'messages': [message_view(row, viewer=viewer, locale=locale) for row in rows]}
         if page is not None:
@@ -713,13 +757,13 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
     @app.get('/messages/mine')
     def mine(session: CurrentUser, locale: Annotated[str, Query(pattern=r'^(en|zh)$')] = 'en') -> dict:
         with connect(settings.db_path) as db:
-            rows = db.execute('SELECT messages.*,users.email FROM messages LEFT JOIN users ON users.id=messages.user_id WHERE messages.user_id=? ORDER BY messages.created_at DESC,messages.rowid DESC LIMIT 60', (session['user']['id'],)).fetchall()
+            rows = db.execute('SELECT messages.*,users.email,users.nickname AS account_nickname FROM messages LEFT JOIN users ON users.id=messages.user_id WHERE messages.user_id=? ORDER BY messages.created_at DESC,messages.rowid DESC LIMIT 60', (session['user']['id'],)).fetchall()
         return {'messages': [message_view(row, private=True, viewer=session['user']['role'], locale=locale) for row in rows]}
 
     @app.get('/admin/messages')
     def admin_messages(_session: AdminUser, locale: Annotated[str, Query(pattern=r'^(en|zh)$')] = 'en', status: Annotated[str, Query(pattern=r'^(pending|approved|rejected)$')] = 'pending') -> dict:
         with connect(settings.db_path) as db:
-            rows = db.execute('SELECT messages.*,users.email FROM messages LEFT JOIN users ON users.id=messages.user_id WHERE status=? ORDER BY created_at DESC,messages.rowid DESC LIMIT 100', (status,)).fetchall()
+            rows = db.execute('SELECT messages.*,users.email,users.nickname AS account_nickname FROM messages LEFT JOIN users ON users.id=messages.user_id WHERE status=? ORDER BY created_at DESC,messages.rowid DESC LIMIT 100', (status,)).fetchall()
         return {'messages': [message_view(row, private=True, admin=True, viewer='admin', locale=locale) for row in rows]}
 
     @app.post('/admin/messages/{message_id}/review')
@@ -733,7 +777,7 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
             db.execute('INSERT INTO review_audit(message_id,actor_id,reviewed_at,from_status,to_status) VALUES (?,?,?,?,?)',
                        (message_id, session['user']['id'], reviewed_at, row['status'], payload.decision))
             db.execute('UPDATE messages SET status=?,reviewed_at=? WHERE id=?', (payload.decision, reviewed_at, message_id))
-            updated = db.execute('SELECT messages.*,users.email FROM messages LEFT JOIN users ON users.id=messages.user_id WHERE messages.id=?', (message_id,)).fetchone()
+            updated = db.execute('SELECT messages.*,users.email,users.nickname AS account_nickname FROM messages LEFT JOIN users ON users.id=messages.user_id WHERE messages.id=?', (message_id,)).fetchone()
         return message_view(updated, private=True, admin=True, viewer='admin')
 
 

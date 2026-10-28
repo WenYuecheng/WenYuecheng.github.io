@@ -22,10 +22,10 @@ are needed; CORS allows the Authorization header.
 | --- | --- | --- |
 | GET | `/health` | `{status:"UP"}` after a database read |
 | GET | `/auth/config` | `{registration:"edu",deliveryMode:"local"\|"smtp",devMailbox:boolean}` |
-| POST | `/auth/request-code` | `{email}` → `{challengeId,expiresIn:600,resendAfter:60,deliveryMode}` |
-| POST | `/auth/verify` | `{challengeId,code,nickname?}` → `{token,expiresAt,user:{id,nickname,email,role}}` |
-| GET | `/auth/me` | Bearer → `{user,expiresAt}` |
-| POST | `/auth/logout` | Bearer and `{}` → 204; revokes current token |
+| POST | `/auth/request-code` | `{email,privacyAccepted,privacyVersion}` → `{challengeId,expiresIn:600,resendAfter:60,deliveryMode}` |
+| POST | `/auth/verify` | `{challengeId,code,privacyAccepted,privacyVersion}` → `{token,expiresAt,user:{id,nickname,email,role}}` |
+| GET | `/auth/me` | Bearer or same-site HttpOnly cookie → `{user,expiresAt}` |
+| POST | `/auth/logout` | Bearer or trusted-origin cookie and `{}` → 204; revokes the session and deletes the cookie |
 | GET | `/messages` | `{messages:[{id,name,message,createdAt}]}`; approved only, newest 60 |
 | POST | `/messages` | Bearer and `{message,website?}` → 201 `{id,name,message,createdAt,status:"pending"}` |
 | GET | `/messages/mine` | Bearer → newest 60 own messages, each including status |
@@ -38,8 +38,7 @@ The protected project link keys are `weyra/github`, `weyra/architecture`,
 `weyra/evidence`, `solaceai/demo`, and `solaceai/legacy`. This protects disclosure
 through this API; the linked destinations retain their own access policies.
 
-Names/messages are trimmed; nicknames max 40 characters, message 1–500.
-New users default to `A visitor`; subsequent login preserves their nickname.
+Messages are trimmed and limited to 1–500 characters. Each normalized education email receives a stable, collision-checked eight-digit alias derived using the private HMAC salt: `Visitor 12345678` in English and `访客12345678` in Chinese. The mapping is persisted independently of caller input. Existing custom names migrate without changing account IDs or valid sessions; owner names always follow the configured identity. Legacy `nickname` input is accepted only for compatibility and ignored.
 An optional legacy POST `name` is validated but the authenticated nickname is
 authoritative. `website` is a honeypot: an authenticated filled request gets a
 fake pending 201 object without a write. All content remains plain text; clients
@@ -100,7 +99,7 @@ SMTP uses certificate-verified STARTTLS or implicit TLS and an eight-second time
 
 Sessions are opaque random 256-bit tokens, stored only as HMAC hashes, expire
 at eight hours, and are individually revoked by logout. The role is calculated
-from persisted user email and current server configuration on every request.
+from persisted user email and current server configuration on every request. The main site receives an eight-hour `__Host-eugene_session` cookie with Secure, HttpOnly and SameSite=Lax, with no Domain attribute. Cookie-authenticated writes require an allowed Origin; invalid Bearer credentials never fall back to a cookie. The mirror retains tab-local Bearer compatibility. No credentials are stored in localStorage. A non-secret browser sign-out marker prevents automatic cookie restoration after an interrupted logout. Pending verification email/request IDs can survive refresh for ten minutes; the code itself is never persisted.
 Messages require a verified session, are pending initially, and are limited to
 3/user/ten minutes, 3/peer/ten minutes, and 200/day globally. Public reads return
 only approved records. Reviewing records atomically records actor, time, previous

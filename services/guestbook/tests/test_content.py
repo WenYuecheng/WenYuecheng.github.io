@@ -40,6 +40,7 @@ def test_content_is_authenticated_role_filtered_and_revoked(content_settings):
         assert image.content==b'private image'
         emblem=c.get('/content/assets/emblem',headers=headers)
         assert emblem.content==b'private emblem' and emblem.headers['content-type']=='image/jpeg'
+        c.cookies.clear()
         assert c.get('/content/assets/emblem').status_code==401
         assert image.headers['cache-control']=='private, no-store'
         assert 'Authorization' in image.headers['vary']
@@ -91,10 +92,11 @@ def test_owner_wall_names_follow_viewer_and_locale(content_settings):
         assert c.get('/messages').headers['cache-control']=='no-store'
         assert 'Authorization' in c.get('/messages').headers['vary']
         assert c.get('/messages',headers={'Authorization':'Bearer '+owner['token']}).headers['cache-control']=='no-store'
-        assert names()==['Eugene','Chosen name']
-        assert names(member['token'],'zh')==['Owner Example','Chosen name']
-        assert names(owner['token'],'zh')==['示例作者','Chosen name']
-        assert names(owner['token'],'en')==['Owner Example','Chosen name']
+        c.cookies.clear()
+        assert names()==['Eugene',member['user']['nickname']]
+        assert names(member['token'],'zh')==['Owner Example','访客'+member['user']['nickname'][-8:]]
+        assert names(owner['token'],'zh')==['示例作者','访客'+member['user']['nickname'][-8:]]
+        assert names(owner['token'],'en')==['Owner Example',member['user']['nickname']]
         assert c.get('/messages',headers={'Authorization':'Bearer expired'}).status_code==401
         assert c.get('/messages/mine?locale=zh',headers={'Authorization':'Bearer '+owner['token']}).json()['messages'][0]['name']=='示例作者'
 

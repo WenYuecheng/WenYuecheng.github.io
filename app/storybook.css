@@ -19,6 +19,9 @@ h1,h2,h3 {font-family:var(--display);font-weight:500;letter-spacing:.005em;}
 .handwritten {color:var(--anime-ink);}
 .hero h1 {font-family:var(--display);font-weight:500;line-height:1.22;letter-spacing:.015em;color:#fffafc;text-shadow:0 2px 0 #8f638480,0 5px 25px #24182b70;}
 .hero-signature {letter-spacing:.03em;text-shadow:0 2px 15px #442a4a70;}
+html[lang] .hero h1.hero-letter-quote {font-size:clamp(29px,3.2vw,48px);line-height:1.65;letter-spacing:.025em;max-width:1000px;margin:0 auto 26px;text-wrap:balance;}
+html[lang] .hero h1.hero-letter-quote span {display:block;white-space:normal;}
+.hero h1.hero-letter-quote span+span:before {content:none;}
 .hero-contact-link {padding:6px 14px;background:#352936c7;border:1px solid #ffffff40;border-radius:99px;color:#fff;}
 .portrait-card h2,.intro-card h2,.section-heading h2,.selected-projects-heading h2,.wall-heading h1,.locked-panel h2 {
  color:var(--anime-ink);text-shadow:0 2px 0 var(--anime-highlight),0 5px 18px #a378a219;
@@ -107,6 +110,8 @@ h1,h2,h3 {font-family:var(--display);font-weight:500;letter-spacing:.005em;}
 .dark .privacy-page .legal-toc,.dark .privacy-page .privacy-sources {background:#b08db516;border-color:#846b8e;}
 .dark .privacy-page .legal-important {background:#c59aae13;border-color:#81607b;border-left-color:#bc8aa9;}
 @media(max-width:640px) {
+ html[lang] .hero h1.hero-letter-quote {font-size:clamp(22px,5.2vw,31px);line-height:1.7;letter-spacing:0;}
+ html[lang=en] .hero h1.hero-letter-quote {font-size:clamp(22px,5.2vw,29px);line-height:1.45;}
  .hero h1 {line-height:1.3;letter-spacing:0;}
  .main-nav a {font-size:16px;}
  .privacy-page {padding:112px 14px 75px;}

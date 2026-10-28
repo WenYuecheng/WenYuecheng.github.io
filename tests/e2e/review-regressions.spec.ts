@@ -84,9 +84,9 @@ test('mailbox identity cannot change during code issuance, local lookup or verif
  await page.route(`${base}/auth/config`,r=>r.fulfill({json:{registration:'edu',deliveryMode:'local',devMailbox:true}}));
  await page.route(`${base}/auth/request-code`,r=>{issued=r;});await page.route(`${base}/dev/mailbox?**`,r=>{mailbox=r;});await page.route(`${base}/auth/verify`,r=>{verification=r;});
  await page.route(/\/messages(?:\?.*)?$/,r=>r.fulfill({json:{messages:[]}}));await page.route(`${base}/messages/mine?**`,r=>r.fulfill({json:{messages:[]}}));
- await page.goto('/zh/auth/');const email=page.getByLabel('邮箱（教育邮箱或站主邮箱）',{exact:true}),nickname=page.getByLabel('昵称（可选，不影响管理员身份）'),code=page.getByLabel('邮箱验证码');
+ await page.goto('/zh/auth/');const email=page.getByLabel('邮箱（教育邮箱或站主邮箱）',{exact:true}),code=page.getByLabel('邮箱验证码');
  await email.fill(user.email);await page.getByRole('checkbox').check();await page.getByRole('button',{name:'发送验证码'}).click();
- await expect(email).toBeDisabled();await expect(nickname).toBeDisabled();await expect(code).toBeDisabled();
+ await expect(email).toBeDisabled();await expect(page.locator('input[autocomplete=nickname]')).toHaveCount(0);await expect(code).toBeDisabled();
  await issued!.fulfill({json:{challengeId:'challenge-1',expiresIn:600,resendAfter:60,deliveryMode:'local'}});await expect(email).toBeEnabled();await expect(email).toHaveValue(user.email);
  await page.getByRole('button',{name:'查看本地测试验证码'}).click();await expect(email).toBeDisabled();await mailbox!.fulfill({json:{messages:[{code:'222222'}]}});await expect(email).toBeEnabled();
  await code.fill('222222');await page.getByRole('button',{name:'验证并登录'}).click();await expect(email).toBeDisabled();await expect(code).toBeDisabled();
