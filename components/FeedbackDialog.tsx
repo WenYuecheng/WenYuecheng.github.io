@@ -7,15 +7,15 @@ import type {Locale} from '../data/site';
 type Quota={remaining:number;limit:number;resetsAt:string};
 export function FeedbackDialog({locale}:{locale:Locale}){
  const {user,loading,unavailable,api}=useAuth(),pathname=usePathname(),zh=locale==='zh';
- const dialog=useRef<HTMLDialogElement>(null),opener=useRef<HTMLElement|null>(null),requestId=useRef('');
+ const dialog=useRef<HTMLDialogElement>(null),opener=useRef<HTMLElement|null>(null),requestId=useRef(''),quotaRevision=useRef(0);
  const [open,setOpen]=useState(false),[category,setCategory]=useState('bug'),[title,setTitle]=useState(''),[message,setMessage]=useState(''),[context,setContext]=useState(true),[busy,setBusy]=useState(false),[quota,setQuota]=useState<Quota|null>(null),[status,setStatus]=useState(''),[sent,setSent]=useState(false);
  const active=!!user&&!loading&&!unavailable;
- useEffect(()=>{if(!active){setOpen(false);return;}const onOpen=()=>{opener.current=document.activeElement as HTMLElement;setOpen(true);setStatus('');setSent(false);};window.addEventListener('eugene-report',onOpen);return()=>window.removeEventListener('eugene-report',onOpen);},[active]);
- useEffect(()=>{if(!open)return;const controller=new AbortController();api<Quota>('/feedback/quota',{authenticated:true,signal:controller.signal}).then(setQuota).catch(()=>setQuota(null));return()=>controller.abort();},[api,open]);
+ useEffect(()=>{if(!active){setOpen(false);return;}const onOpen=()=>{opener.current=document.activeElement as HTMLElement;setOpen(true);setStatus('');setSent(false);setQuota(null);};window.addEventListener('eugene-report',onOpen);return()=>window.removeEventListener('eugene-report',onOpen);},[active]);
+ useEffect(()=>{if(!open)return;const controller=new AbortController(),revision=++quotaRevision.current;api<Quota>('/feedback/quota',{authenticated:true,signal:controller.signal}).then(value=>{if(revision===quotaRevision.current)setQuota(value);}).catch(()=>{if(revision===quotaRevision.current)setQuota(null);});return()=>controller.abort();},[api,open]);
  useEffect(()=>{const el=dialog.current;if(open){el?.showModal();}else if(el?.open){el.close();opener.current?.focus();}},[open]);
  const changed=()=>{requestId.current='';setSent(false);setStatus('');};
  const submit=async(event:FormEvent)=>{
-  event.preventDefault();if(busy||sent||!active)return;setBusy(true);setStatus('');requestId.current||=crypto.randomUUID().replaceAll('-','');
+  event.preventDefault();if(busy||sent||!active)return;setBusy(true);setStatus('');quotaRevision.current++;requestId.current||=crypto.randomUUID().replaceAll('-','');
   try{
    const result=await api<Quota>('/feedback',{method:'POST',authenticated:true,body:{category,title,message,page:context?pathname:'',context:context?`${navigator.userAgent.slice(0,320)} · ${innerWidth}×${innerHeight}`:'',requestId:requestId.current}});
    setQuota(result);setSent(true);setTitle('');setMessage('');requestId.current='';setStatus(zh?'来信已送达，谢谢你帮这里变得更好。':'Delivered. Thank you for making this little space better.');
@@ -24,6 +24,7 @@ export function FeedbackDialog({locale}:{locale:Locale}){
    setStatus(code===429?(zh?'今天的 3 次反馈已用完，明天再来吧。':'You have used today’s 3 reports. Please try again tomorrow.'):code===409?(zh?'反馈仍在发送，请稍后再试，内容已保留。':'Delivery is still in progress. Your draft is safe; please retry shortly.'):(zh?'暂时未能确认送达，草稿已保留，请稍后重试。':'Delivery could not be confirmed. Your draft is safe; please retry shortly.'));
    if(code===429)setQuota(q=>q?{...q,remaining:0}:null);
    if(code===503)requestId.current='';
+   if(code!==401){const revision=++quotaRevision.current;void api<Quota>('/feedback/quota',{authenticated:true}).then(value=>{if(revision===quotaRevision.current)setQuota(value);}).catch(()=>{});}
   }finally{setBusy(false);}
  };
  if(!user)return null;
