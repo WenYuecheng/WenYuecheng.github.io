@@ -7,7 +7,7 @@ export const openingGateStyles=`
 #opening-bootstrap{display:none}
 html[data-opening=pending]{overflow:hidden}
 html[data-opening=pending] .site-experience{visibility:hidden!important}
-html[data-opening=pending] #opening-bootstrap{position:fixed;inset:0;z-index:210;display:grid;place-items:center;overflow:hidden;background:#02050d;color:#cbe8ff;font-family:system-ui,sans-serif}
+html[data-opening=pending] #opening-bootstrap{position:fixed;inset:0;z-index:210;display:grid;place-items:center;overflow:hidden;background:#000;color:#cbe8ff;font-family:system-ui,sans-serif}
 .opening-bootstrap-halo{position:absolute;width:min(70vw,640px);aspect-ratio:1;border-radius:50%;background:radial-gradient(ellipse,#15365366,transparent 65%);animation:opening-bootstrap-breathe 3s ease-in-out infinite alternate;pointer-events:none}
 .opening-bootstrap-copy{position:relative;text-align:center;padding:24px}
 .opening-bootstrap-copy strong{display:block;font-family:Georgia,serif;font-size:clamp(26px,5vw,46px);font-weight:400;letter-spacing:.025em}

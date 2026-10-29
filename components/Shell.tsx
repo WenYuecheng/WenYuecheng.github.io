@@ -57,7 +57,7 @@ export function BackgroundMusic({locale}:{locale:Locale}) {
  const audio=useRef<HTMLAudioElement>(null), userPaused=useRef(false);
  const [playing,setPlaying]=useState(false),[hint,setHint]=useState(false),[blocked,setBlocked]=useState(false),[failed,setFailed]=useState(false);
  const requestPlayback=useCallback(async(reload=false)=>{
-  const element=audio.current;if(!element)return;
+  const element=audio.current;if(!element||['pending','playing'].includes(document.documentElement.dataset.opening||''))return;
   userPaused.current=false; element.dataset.userPaused='0';
   if(reload||element.error)element.load();
   try{await element.play();setBlocked(false);}

@@ -1,28 +1,33 @@
 import {describe,it,expect} from 'vitest';
-import {parseOpeningScene,projectOpeningPoint,OPENING_DURATION} from '../../lib/opening';
-const scene={enabled:true,closed:'/images/opening/elf-side-closed.webp',open:'/images/opening/elf-side-open.webp',focusX:62,focusY:45};
-describe('optional opening artwork configuration',()=>{
- it('stays dormant until explicitly enabled',()=>{expect(parseOpeningScene({...scene,enabled:false})).toBeNull();expect(parseOpeningScene(null)).toBeNull();});
- it('accepts only images from the local opening directory',()=>{expect(parseOpeningScene(scene)).toMatchObject(scene);for(const open of ['https://example.org/eye.webp','//evil.test/eye.webp','/images/opening/../portrait.webp','/images/opening/a.svg'])expect(parseOpeningScene({...scene,open})).toBeNull();});
- it('bounds crop positions',()=>{expect(parseOpeningScene({...scene,focusX:200,focusY:-1})).toMatchObject({focusX:100,focusY:0});expect(parseOpeningScene({...scene,focusX:'50%',focusY:null})).toMatchObject({focusX:62,focusY:45});});
- it('keeps the light on the actual iris after cover-cropping landscape and phone screens',()=>{
-  const crop={focusX:87,focusY:44};const art={width:1536,height:1024};
-  expect(projectOpeningPoint({x:84.5,y:39.2},crop,art,{width:1536,height:1024})).toEqual({x:1297.92,y:401.408,scale:1});
-  const phone=projectOpeningPoint({x:84.5,y:39.2},crop,art,{width:390,height:844});
-  expect(phone.x).toBeCloseTo(307.65,1);expect(phone.y).toBeCloseTo(330.848,2);
-  const wide=projectOpeningPoint({x:84.5,y:39.2},crop,art,{width:1920,height:1080});
-  expect(wide.x).toBeCloseTo(1622.4,1);expect(wide.y).toBeCloseTo(413.76,2);
+import {parseOpeningScene,projectOpeningPoint,openingMoment,OPENING_DURATION} from '../../lib/opening';
+const scene={enabled:true,image:'/images/opening/sunrise-mist.webp',focusX:50,focusY:45,sunX:94,sunY:69};
+describe('sunrise through mist opening',()=>{
+ it('accepts only enabled local artwork and rejects URL/path injection',()=>{
+  expect(parseOpeningScene(scene)).toMatchObject(scene);
+  expect(parseOpeningScene({...scene,enabled:false})).toBeNull();expect(parseOpeningScene(null)).toBeNull();
+  for(const image of ['https://example.org/a.webp','//evil.test/a.webp','/images/opening/../a.webp','/images/opening/a.svg'])expect(parseOpeningScene({...scene,image})).toBeNull();
  });
- it('bounds eye coordinates and extends the opening only moderately',()=>{
-  expect(parseOpeningScene({...scene,eyeX:300,eyeY:-10})).toMatchObject({eyeX:100,eyeY:0});
-  expect(parseOpeningScene({...scene,eyeX:'bad',eyeY:null})).toMatchObject({eyeX:84.5,eyeY:39.2});
-  expect(OPENING_DURATION).toBe(7200);
+ it('allows only local browser-compatible video sources',()=>{
+  expect(parseOpeningScene({...scene,video:'/videos/opening/sunrise-wipe.mp4'})).toMatchObject({video:'/videos/opening/sunrise-wipe.mp4'});
+  for(const video of ['https://evil.test/a.mp4','/videos/opening/../a.mp4','/videos/opening/a.mov'])expect(parseOpeningScene({...scene,video})).toBeNull();
  });
- it('allows a local turned-closed pose and falls back safely for older configurations',()=>{
-  expect(parseOpeningScene({...scene,turned:'/images/opening/elf-turn-closed.webp'})).toMatchObject({turned:'/images/opening/elf-turn-closed.webp'});
-  expect(parseOpeningScene(scene)).toMatchObject({turned:scene.closed});
-  expect(parseOpeningScene({...scene,turned:'https://example.com/turn.webp'})).toBeNull();
-  expect(parseOpeningScene({...scene,half:'/images/opening/elf-side-half.webp'})).toMatchObject({half:'/images/opening/elf-side-half.webp'});
-  expect(parseOpeningScene({...scene,half:'https://example.com/half.webp'})).toBeNull();
+ it('bounds artwork focus and sun positions',()=>{
+  expect(parseOpeningScene({...scene,focusX:200,focusY:-1,sunX:-1,sunY:300})).toMatchObject({focusX:100,focusY:0,sunX:0,sunY:100});
+  expect(parseOpeningScene({...scene,focusX:null,sunX:'94%'})).toMatchObject({focusX:50,sunX:94});
+ });
+ it('projects light from the actual sun in cover and mobile contain layouts',()=>{
+  const art={width:1536,height:1024},crop={focusX:50,focusY:50};
+  expect(projectOpeningPoint({x:94,y:69},crop,art,{width:1536,height:1024})).toEqual({x:1443.84,y:706.56,scale:1});
+  const phone=projectOpeningPoint({x:94,y:69},crop,art,{width:390,height:844},'contain');
+  expect(phone.x).toBeCloseTo(366.6,1);expect(phone.y).toBeCloseTo(471.4,1);
+ });
+ it('starts obscured, wipes continuously right to left, then holds the completely clear image',()=>{
+  expect(OPENING_DURATION).toBe(10000);
+  expect(openingMoment(0)).toMatchObject({wipe:0,clear:0,sun:0});
+  let previous=-1;
+  for(let i=0;i<=100;i++){const moment=openingMoment(i/100);expect(moment.wipe).toBeGreaterThanOrEqual(previous);expect(moment.wipe).toBeLessThanOrEqual(1);previous=moment.wipe;}
+  expect(openingMoment(.4).wipe).toBeGreaterThan(0);expect(openingMoment(.4).wipe).toBeLessThan(openingMoment(.65).wipe);
+  expect(openingMoment(.88)).toMatchObject({wipe:1,clear:1,sun:1});
+  expect(openingMoment(Number.NaN)).toEqual(openingMoment(0));expect(openingMoment(8)).toEqual(openingMoment(1));
  });
 });

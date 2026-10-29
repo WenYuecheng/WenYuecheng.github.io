@@ -8,7 +8,9 @@ for(const image of ['letter-garden','hero-day','hero-night','weyra-cover','solac
 if(fs.existsSync('out/images/portrait.webp')||fs.existsSync('out/images/runtime'))throw Error('Private assets must not be exported');
 if(!fs.existsSync('out/images/visitor-fox-original.webp'))throw Error('Missing public avatar');
 if(!fs.existsSync('out/images/companion/pink-front-pen.webp'))throw Error('Missing approved companion artwork');
-for(const frame of ['elf-turn-closed','elf-side-closed','elf-side-half','elf-side-open'])if(!fs.existsSync(`out/images/opening/${frame}.webp`))throw Error('Missing opening pose '+frame);
+if(!fs.existsSync('out/videos/opening/sunrise-wipe.mp4'))throw Error('Missing sunrise opening video');
+if(!fs.existsSync('out/images/opening/sunrise-mist.webp'))throw Error('Missing sunrise opening artwork');
+for(const old of ['elf-turn-closed','elf-side-closed','elf-side-half','elf-side-open'])if(fs.existsSync(`out/images/opening/${old}.webp`))throw Error('Obsolete opening frame '+old);
 const rootHtml=fs.readFileSync('out/index.html','utf8');
 const gateScript=[...rootHtml.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].map(match=>match[1]).find(script=>script.includes("root.dataset.opening='pending'"));
 if(!gateScript)throw Error('Missing first-paint opening bootstrap');

@@ -34,8 +34,7 @@ are needed; CORS allows the Authorization header.
 | GET | `/projects/{slug}/links/{key}` | Bearer → `{url}` from fixed HTTPS server mapping; unknown key 404 |
 | GET | `/dev/mailbox?email=...` | Explicit local development only → `{messages:[{email,code,createdAt}]}` |
 
-The protected project link keys are `weyra/github`, `weyra/architecture`,
-`weyra/evidence`, `solaceai/demo`, and `solaceai/legacy`. This protects disclosure
+The protected project link keys are `weyra/github` and `solaceai/demo`. This protects disclosure
 through this API; the linked destinations retain their own access policies.
 
 Messages are trimmed and limited to 1–500 characters. Each normalized education email receives a stable, collision-checked eight-digit alias derived using the private HMAC salt: `Visitor 12345678` in English and `访客12345678` in Chinese. The mapping is persisted independently of caller input. Existing custom names migrate without changing account IDs or valid sessions; owner names always follow the configured identity. Legacy `nickname` input is accepted only for compatibility and ignored.
