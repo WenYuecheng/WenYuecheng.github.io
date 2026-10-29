@@ -2,9 +2,24 @@ import {describe,it,expect} from 'vitest';
 import {companionQuotes} from '../../data/companion-quotes';
 import {advanceCompanion,clampCompanion} from '../../lib/companion';
 describe('companion conversations',()=>{
- it('has all 111 source entries with complete bilingual, one- or two-click stages',()=>{
+ it('has all 111 source entries with complete bilingual dialogue stages',()=>{
   expect(companionQuotes.map(q=>q.id)).toEqual(Array.from({length:111},(_,i)=>i+1));
-  for(const q of companionQuotes){expect([1,2]).toContain(q.zh.length);expect(q.en.length).toBe(q.zh.length);for(const line of [...q.zh,...q.en])expect(line.trim().length).toBeGreaterThan(0);}
+  for(const q of companionQuotes){expect(q.zh.length).toBeGreaterThan(0);expect(q.en.length).toBe(q.zh.length);for(const line of [...q.zh,...q.en])expect(line.trim().length).toBeGreaterThan(0);}
+ });
+ it('keeps medicine setup, listener question and punchline on separate clicks',()=>{
+  const index=companionQuotes.findIndex(q=>q.id===111);
+  expect(companionQuotes[index].zh).toEqual(['我要去吃药了。','吃的什么药？','你最最最最重要。']);
+  expect(companionQuotes[index].en).toHaveLength(3);
+ });
+ it('finishes every authored turn, including conversations longer than two turns',()=>{
+  for(let index=0;index<companionQuotes.length;index++){
+   let cursor={index,part:0};
+   for(let part=1;part<companionQuotes[index].zh.length;part++){
+    cursor=advanceCompanion(cursor,()=>{throw new Error('Do not skip an authored dialogue turn');});
+    expect(cursor).toEqual({index,part});
+   }
+   expect(advanceCompanion(cursor,()=>0).index).not.toBe(index);
+  }
  });
  it('finishes the selected question before consuming another random draw',()=>{
   const question=advanceCompanion(null,()=>1/111);
@@ -25,7 +40,7 @@ describe('companion conversations',()=>{
  });
  it('avoids consecutive repeated sayings for both ends of the random range',()=>{
   expect(advanceCompanion({index:0,part:1},()=>0).index).toBe(1);
-  expect(advanceCompanion({index:110,part:1},()=>0.99999).index).toBe(109);
+  expect(advanceCompanion({index:110,part:companionQuotes[110].zh.length-1},()=>0.99999).index).toBe(109);
  });
  it('clamps a dragged mascot into narrow or resized viewports',()=>{
   expect(clampCompanion({x:-900,y:4000},{width:114,height:114},{width:320,height:568})).toEqual({x:8,y:446});

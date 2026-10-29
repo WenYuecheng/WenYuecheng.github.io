@@ -14,7 +14,7 @@ export function Companion({locale}:{locale:Locale}) {
  const [bubblePosition,setBubblePosition]=useState<{left:number;top:number;maxHeight:number}|null>(null);
  const helpId=useId();
  const text=cursor?companionQuotes[cursor.index][locale][cursor.part]:'';
- const pending=cursor?.part===0&&companionQuotes[cursor.index].zh.length===2;
+ const pending=cursor!==null&&cursor.part+1<companionQuotes[cursor.index][locale].length;
 
  useEffect(()=>{
   const resize=()=>{

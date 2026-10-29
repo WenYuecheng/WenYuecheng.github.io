@@ -8,7 +8,7 @@ test('root stays English for a Chinese browser and supports explicit Chinese',as
 });
 test('pointer clicks paint a short ripple and leave controls clickable',async({page},info)=>{
  await page.goto('/');
- if(info.project.name==='mobile')await page.locator('.hero-subtitle').tap();else await page.locator('.hero-subtitle').click();
+ if(info.project.name==='mobile')await page.locator('.hero-signature').tap();else await page.locator('.hero-signature').click();
  await expect.poll(()=>hasInk(page)).toBe(true);await expect.poll(()=>hasInk(page),{timeout:2500}).toBe(false);
  await expect(page.locator('.click-effects')).toHaveCSS('pointer-events','none');
  await page.locator('.footer-links').getByRole('link',{name:'Contact',exact:true}).click();await expect(page).toHaveURL('/contact/');

@@ -26,7 +26,7 @@ test('administrator project list and walkthrough use protected content',async({p
  await page.locator('.flow-stages button').nth(1).click();await expect(page.locator('.flow-description')).toContainText('Choose an appropriate action.');
  await expect(page.locator('#evidence,#notes,.project-note')).toHaveCount(0);
  await expect(page.locator('#links button').first()).toContainText('GitHub');
- await expect(page.locator('.project-detail-hero img')).toHaveAttribute('src',/^blob:/);
+ await expect(page.locator('.route-scenery-art img')).toHaveAttribute('src',/projects-day\.webp/);
  await page.screenshot({path:`test-results/weyra-${info.project.name}.png`,fullPage:true});
  await page.getByRole('link',{name:'English',exact:true}).click();await expect(page).toHaveURL('/projects/weyra/');
  await page.goto('/zh/projects/solaceai/');await expect(page.locator('.detail-intro')).toContainText('A member project description.');

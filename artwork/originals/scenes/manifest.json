@@ -1,0 +1,74 @@
+[
+  {
+    "name": "profile-day",
+    "master": "artwork/originals/scenes/profile-day.png",
+    "desktop": "/images/scenes/profile-day.webp",
+    "mobile": "/images/scenes/profile-day-mobile.webp"
+  },
+  {
+    "name": "profile-night",
+    "master": "artwork/originals/scenes/profile-night.png",
+    "desktop": "/images/scenes/profile-night.webp",
+    "mobile": "/images/scenes/profile-night-mobile.webp"
+  },
+  {
+    "name": "reading-day",
+    "master": "artwork/originals/scenes/reading-day.png",
+    "desktop": "/images/scenes/reading-day.webp",
+    "mobile": "/images/scenes/reading-day-mobile.webp"
+  },
+  {
+    "name": "reading-night",
+    "master": "artwork/originals/scenes/reading-night.png",
+    "desktop": "/images/scenes/reading-night.webp",
+    "mobile": "/images/scenes/reading-night-mobile.webp"
+  },
+  {
+    "name": "updates-day",
+    "master": "artwork/originals/scenes/updates-day.png",
+    "desktop": "/images/scenes/updates-day.webp",
+    "mobile": "/images/scenes/updates-day-mobile.webp"
+  },
+  {
+    "name": "updates-night",
+    "master": "artwork/originals/scenes/updates-night.png",
+    "desktop": "/images/scenes/updates-night.webp",
+    "mobile": "/images/scenes/updates-night-mobile.webp"
+  },
+  {
+    "name": "projects-day",
+    "master": "public/images/generated/hero-day.webp",
+    "desktop": "/images/scenes/projects-day.webp",
+    "mobile": "/images/scenes/projects-day-mobile.webp"
+  },
+  {
+    "name": "projects-night",
+    "master": "public/images/generated/hero-night.webp",
+    "desktop": "/images/scenes/projects-night.webp",
+    "mobile": "/images/scenes/projects-night-mobile.webp"
+  },
+  {
+    "name": "wall-day",
+    "master": "public/images/generated/message-garden.webp",
+    "desktop": "/images/scenes/wall-day.webp",
+    "mobile": "/images/scenes/wall-day-mobile.webp"
+  },
+  {
+    "name": "wall-night",
+    "master": "artwork/originals/scenes/wall-night.png",
+    "desktop": "/images/scenes/wall-night.webp",
+    "mobile": "/images/scenes/wall-night-mobile.webp"
+  },
+  {
+    "name": "contact-day",
+    "master": "public/images/generated/contact-garden.webp",
+    "desktop": "/images/scenes/contact-day.webp",
+    "mobile": "/images/scenes/contact-day-mobile.webp"
+  },
+  {
+    "name": "contact-night",
+    "master": "artwork/originals/scenes/contact-night.png",
+    "desktop": "/images/scenes/contact-night.webp",
+    "mobile": "/images/scenes/contact-night-mobile.webp"
+  }
+]

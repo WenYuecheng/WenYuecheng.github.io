@@ -20,19 +20,19 @@ function savePreference(key:string,value:string) { try { localStorage.setItem(ke
 export function Shell({children}:{children:ReactNode}) {
  const {name,home}=useIdentity(); const auth=useAuth();
  const pathname=usePathname(); const locale:Locale=pathname.startsWith('/zh')?'zh':'en'; const t=content[locale];
- const [dark,setDark]=useState(false),[motion,setMotion]=useState(true),[menu,setMenu]=useState(false);
+ const [dark,setDark]=useState<boolean|null>(null),[motion,setMotion]=useState(true),[menu,setMenu]=useState(false);
  useEffect(()=>{setDark(readPreference('yuecheng-theme')==='dark');setMotion(readPreference('yuecheng-motion')!=='off');},[]);
- useEffect(()=>{document.documentElement.classList.toggle('dark',dark);},[dark]);
+ useEffect(()=>{if(dark!==null)document.documentElement.classList.toggle('dark',dark);},[dark]);
  useEffect(()=>{document.documentElement.dataset.motion=motion?'on':'off';},[motion]);
  useEffect(()=>{ document.documentElement.lang=locale==='zh'?'zh-CN':'en';setMenu(false); },[locale,pathname]);
  useEffect(()=>{if(!menu)return;const key=(e:KeyboardEvent)=>{if(e.key==='Escape')setMenu(false);};window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key);},[menu]);
- const links=[{key:'home' as const,path:'/'},{key:'projects' as const,path:'/projects/'},{key:'wall' as const,path:'/guestbook/'},{key:'contact' as const,path:'/contact/'}];
+ const links=[{key:'home' as const,path:'/'},{key:'projects' as const,path:'/projects/'},{key:'reading' as const,path:'/reading/'},{key:'updates' as const,path:'/updates/'},{key:'wall' as const,path:'/guestbook/'},{key:'contact' as const,path:'/contact/'}];
  const normalized=pathname.replace(/^\/zh(?=\/|$)/,'')||'/';
  return <>
   <OpeningScene/>
   <ClickEffect/>
   <div className="site-experience">
-  <RouteScenery/>
+  <RouteScenery dark={dark}/>
   <a className="skip-link" href="#main">{t.skip}</a>
   <div className="ambient-paper" aria-hidden="true" />
   <Atmosphere />
@@ -46,7 +46,7 @@ export function Shell({children}:{children:ReactNode}) {
    </div>
   </div></header>
   {children}
-  <footer className="site-footer"><div className="footer-star">✦</div><p>{t.footer}</p><div className="footer-links"><Link href={routeFor(locale,'/projects/')}>{t.nav.projects}</Link><Link href={routeFor(locale,'/contact/')}>{t.nav.contact}</Link><Link href={routeFor(locale,'/guestbook/')}>{locale==='zh'?'留言墙':'Message wall'}</Link>{home&&<VerifiedGitHubLink locale={locale}>GitHub <ArrowUpRight size={12}/></VerifiedGitHubLink>}<Link href={routeFor(locale,'/privacy/')}>{locale==='zh'?'隐私协议':'Privacy'}</Link><Link href={routeFor(locale,'/copyright/')}>{locale==='zh'?'版权说明':'Copyright'}</Link></div><small>© {new Date().getFullYear()} {name}</small></footer>
+  <footer className="site-footer"><div className="footer-star">✦</div><p>{t.footer}</p><div className="footer-links"><Link href={routeFor(locale,'/projects/')}>{t.nav.projects}</Link><Link href={routeFor(locale,'/contact/')}>{t.nav.contact}</Link><Link href={routeFor(locale,'/reading/')}>{t.nav.reading}</Link><Link href={routeFor(locale,'/updates/')}>{t.nav.updates}</Link><Link href={routeFor(locale,'/guestbook/')}>{locale==='zh'?'留言墙':'Message wall'}</Link>{home&&<VerifiedGitHubLink locale={locale}>GitHub <ArrowUpRight size={12}/></VerifiedGitHubLink>}<Link href={routeFor(locale,'/privacy/')}>{locale==='zh'?'隐私协议':'Privacy'}</Link><Link href={routeFor(locale,'/copyright/')}>{locale==='zh'?'版权说明':'Copyright'}</Link></div><small>© {new Date().getFullYear()} {name}</small></footer>
   <BackgroundMusic locale={locale}/>
   <Companion locale={locale}/><FeedbackDialog key={auth.user?.id||'anonymous'} locale={locale}/>
   </div>

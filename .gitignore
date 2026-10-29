@@ -12,4 +12,5 @@ out/
 __pycache__/
 
 *.tsbuildinfo
+artwork/originals/scenes/*.png
 .pytest_cache/

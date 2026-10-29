@@ -29,7 +29,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
-from private_content import load_content, project_view, asset_path
+from private_content import load_content, project_view, asset_path, PUBLIC_NAME, PUBLIC_PORTRAIT
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -107,6 +107,30 @@ class MessagePage(MessageList):
     totalPages: int | None = None
 
 
+class PublicUpdate(BaseModel):
+    id: str
+    body: str
+    createdAt: str
+    updatedAt: str
+
+
+class AdminUpdate(PublicUpdate):
+    bodyZh: str
+    bodyEn: str
+
+
+class UpdatePage(BaseModel):
+    updates: list[PublicUpdate]
+    page: int
+    pageSize: int
+    total: int
+    totalPages: int
+
+
+class AdminUpdatePage(UpdatePage):
+    updates: list[AdminUpdate]
+
+
 class Health(BaseModel):
     status: str = "UP"
 
@@ -140,7 +164,7 @@ class RequestBoundary:
             await reject(403, "Origin is not allowed.")
             return
 
-        if scope["method"] != "POST":
+        if scope["method"] not in ("POST", "PATCH", "DELETE"):
             await self.app(scope, receive, safe_send)
             return
         if headers.get("content-type", "").split(";", 1)[0].strip().lower() != "application/json":
@@ -192,7 +216,7 @@ def connect(path: Path) -> Iterator[sqlite3.Connection]:
         db.close()
 
 
-def initialize(settings: Settings) -> bytes:
+def initialize(settings: Settings, timestamp: float | None = None) -> bytes:
     settings.db_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     if settings.hmac_salt is not None:
         salt = settings.hmac_salt.encode("utf-8")
@@ -266,7 +290,25 @@ def initialize(settings: Settings) -> bytes:
                 id INTEGER PRIMARY KEY, message_id TEXT NOT NULL, actor_id TEXT NOT NULL,
                 reviewed_at TEXT NOT NULL, from_status TEXT NOT NULL, to_status TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS site_updates (
+                id TEXT PRIMARY KEY, body_zh TEXT NOT NULL, body_en TEXT NOT NULL,
+                created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS site_updates_time ON site_updates(created_at);
+            CREATE TABLE IF NOT EXISTS site_migrations (
+                name TEXT PRIMARY KEY, applied_at TEXT NOT NULL
+            );
         """)
+        # Record the seed migration independently of its row so deletion is permanent.
+        db.execute('BEGIN IMMEDIATE')
+        migration_time = iso(timestamp if timestamp is not None else datetime.now(timezone.utc).timestamp())
+        applied = db.execute('INSERT OR IGNORE INTO site_migrations(name,applied_at) VALUES (?,?)',
+                             ('reading-garden-initial-update', migration_time)).rowcount
+        if applied:
+            db.execute('INSERT INTO site_updates(id,body_zh,body_en,created_at,updated_at) VALUES (?,?,?,?,?)',
+                       (uuid.uuid4().hex, '整理了最近读过的论文，已收录在阅读选刊中。欢迎沿着原文链接继续探索。',
+                        'The papers I have been reading are now collected in Reading. Follow the original links to explore further.',
+                        migration_time, migration_time))
         for row in db.execute('SELECT * FROM users').fetchall():
             if row['email'] != settings.admin_email.strip().lower():
                 assign_visitor_name(db, salt, row)
@@ -475,6 +517,11 @@ class StrictInput(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, strict=True, extra='forbid')
 
 
+class UpdateInput(StrictInput):
+    bodyZh: str = Field(min_length=1, max_length=1500)
+    bodyEn: str = Field(default='', max_length=3000)
+
+
 class ConsentInput(StrictInput):
     privacyAccepted: bool = False
     privacyVersion: str = Field(default='', max_length=40)
@@ -520,13 +567,13 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        app.state.salt = initialize(settings)
+        app.state.salt = initialize(settings, clock().timestamp())
         yield
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     origins = PRODUCTION_ORIGINS + (DEVELOPMENT_ORIGINS if settings.development else ())
     app.add_middleware(RequestBoundary, origins=origins)
-    app.add_middleware(CORSMiddleware, allow_origins=list(origins), allow_methods=['GET', 'POST'],
+    app.add_middleware(CORSMiddleware, allow_origins=list(origins), allow_methods=['GET', 'POST', 'PATCH', 'DELETE'],
                        allow_headers=['Content-Type', 'Authorization'], expose_headers=['Retry-After'],
                        allow_credentials=True, max_age=600)
     cookie_name = 'eugene_session' if settings.development else '__Host-eugene_session'
@@ -544,12 +591,7 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
         return JSONResponse({'error': 'Guestbook is temporarily unavailable.'}, status_code=503)
 
     def owner_name(locale: str = 'en', viewer: str = 'admin') -> str:
-        if viewer == 'anonymous':
-            return 'Eugene'
-        try:
-            return load_content(settings.content_dir)['identity'][locale if viewer == 'admin' else 'en']
-        except HTTPException:
-            return 'Eugene'
+        return PUBLIC_NAME
 
     def user_view(row, locale: str = 'en') -> dict:
         return {'id': row['id'], 'nickname': owner_name(locale) if row['email'] == admin_email else visitor_name(row['nickname'], locale), 'email': row['email'],
@@ -583,6 +625,63 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
         return session
 
     AdminUser = Annotated[dict, Depends(administrator)]
+
+    def update_view(row, locale: str = 'zh', admin: bool = False) -> dict:
+        item = {'id': row['id'], 'body': row['body_en'] if locale == 'en' and row['body_en'] else row['body_zh'],
+                'createdAt': row['created_at'], 'updatedAt': row['updated_at']}
+        if admin:
+            item.update(bodyZh=row['body_zh'], bodyEn=row['body_en'])
+        return item
+
+    def updates_page(page: int, page_size: int, locale: str, admin: bool = False) -> dict:
+        with connect(settings.db_path) as db:
+            db.execute('BEGIN')
+            total = db.execute('SELECT count(*) FROM site_updates').fetchone()[0]
+            pages = max(1, math.ceil(total / page_size))
+            current = min(page, pages)
+            rows = db.execute('SELECT * FROM site_updates ORDER BY created_at DESC,rowid DESC LIMIT ? OFFSET ?',
+                              (page_size, (current - 1) * page_size)).fetchall()
+        return {'updates': [update_view(row, locale, admin) for row in rows], 'page': current,
+                'pageSize': page_size, 'total': total, 'totalPages': pages}
+
+    @app.get('/updates', response_model=UpdatePage)
+    def public_updates(page: Annotated[int, Query(ge=1, le=100000)] = 1,
+                       page_size: Annotated[int, Query(alias='pageSize', ge=1, le=10)] = 10,
+                       locale: Annotated[str, Query(pattern=r'^(en|zh)$')] = 'zh') -> dict:
+        return updates_page(page, page_size, locale)
+
+    @app.get('/admin/updates', response_model=AdminUpdatePage)
+    def admin_updates(_session: AdminUser, page: Annotated[int, Query(ge=1, le=100000)] = 1,
+                      page_size: Annotated[int, Query(alias='pageSize', ge=1, le=10)] = 10,
+                      locale: Annotated[str, Query(pattern=r'^(en|zh)$')] = 'zh') -> dict:
+        return updates_page(page, page_size, locale, admin=True)
+
+    @app.post('/admin/updates', status_code=201, response_model=AdminUpdate)
+    def create_update(payload: UpdateInput, _session: AdminUser) -> dict:
+        item_id = uuid.uuid4().hex
+        timestamp = iso(clock().timestamp())
+        with connect(settings.db_path) as db:
+            db.execute('INSERT INTO site_updates(id,body_zh,body_en,created_at,updated_at) VALUES (?,?,?,?,?)',
+                       (item_id, payload.bodyZh, payload.bodyEn, timestamp, timestamp))
+            row = db.execute('SELECT * FROM site_updates WHERE id=?', (item_id,)).fetchone()
+        return update_view(row, admin=True)
+
+    @app.patch('/admin/updates/{update_id}', response_model=AdminUpdate)
+    def edit_update(update_id: str, payload: UpdateInput, _session: AdminUser) -> dict:
+        with connect(settings.db_path) as db:
+            changed = db.execute('UPDATE site_updates SET body_zh=?,body_en=?,updated_at=? WHERE id=?',
+                                 (payload.bodyZh, payload.bodyEn, iso(clock().timestamp()), update_id)).rowcount
+            if not changed:
+                raise HTTPException(404, 'Update not found.')
+            row = db.execute('SELECT * FROM site_updates WHERE id=?', (update_id,)).fetchone()
+        return update_view(row, admin=True)
+
+    @app.delete('/admin/updates/{update_id}', status_code=204)
+    def delete_update(update_id: str, _payload: StrictInput, _session: AdminUser) -> Response:
+        with connect(settings.db_path) as db:
+            if not db.execute('DELETE FROM site_updates WHERE id=?', (update_id,)).rowcount:
+                raise HTTPException(404, 'Update not found.')
+        return Response(status_code=204)
 
     @app.get('/health')
     def health() -> Health:
@@ -823,9 +922,13 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] |
     def home_content(session: CurrentUser, locale: Annotated[str, Query(pattern=r'^(en|zh)$')] = 'en') -> dict:
         config = load_content(settings.content_dir)
         home = config['home'][locale]
-        return {'name': config['identity'][locale if session['user']['role'] == 'admin' else 'en'], 'portraitAsset': 'portrait',
-                'profile': home['profile'], 'education': {key: value for key, value in home['education'].items() if key not in ('courses', 'coursework')},
-                'interests': home['interests'], 'contact': {'csdn': config.get('csdn', ''), 'email': config.get('ownerEmail','') if session['user']['role'] == 'admin' else admin_email}}
+        interests_note = home.get('interestsNote', '')
+        if not isinstance(interests_note, str):
+            raise HTTPException(503, 'Private content is temporarily unavailable.')
+        return {'name': PUBLIC_NAME, 'portraitUrl': PUBLIC_PORTRAIT,
+                **({'interestsNote': interests_note} if interests_note else {}),
+                'education': {key: value for key, value in home['education'].items() if key not in ('courses', 'coursework', 'admission')},
+                'contact': {'csdn': config.get('csdn', ''), 'email': config.get('ownerEmail','') if session['user']['role'] == 'admin' else admin_email}}
 
     @app.get('/content/projects')
     def projects_content(session: CurrentUser, locale: Annotated[str, Query(pattern=r'^(en|zh)$')] = 'en') -> dict:

@@ -17,9 +17,9 @@ for(const theme of ['light','dark'])test(`${theme} envelope opens and scenic sur
  await page.evaluate(()=>document.documentElement.dataset.motion='off');
  await expect(page.locator('.envelope-flap')).toHaveCSS('transform','none');
  await page.goto('/zh/projects/weyra/');
- await expect(page.locator('.route-scenery-art')).toHaveCSS('background-image',/weyra-cover/);
+ await expect(page.locator('.route-scenery-art img')).toHaveAttribute('src',/projects-(day|night)/);
  await page.goto('/zh/contact/');
- await expect(page.locator('.route-scenery-art')).toHaveCSS('background-image',/contact-garden/);
+ await expect(page.locator('.route-scenery-art img')).toHaveAttribute('src',/contact-(day|night)/);
  expect(await page.locator('.contact-page').evaluate(el=>el.getBoundingClientRect().height)).toBeGreaterThan(await page.locator('.contact-hero').evaluate(el=>el.getBoundingClientRect().height));
  await page.screenshot({path:`test-results/contact-scenery-${theme}-${info.project.name}.png`,fullPage:true});
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
@@ -31,28 +31,29 @@ test('reduced motion keeps the envelope still and the letter readable',async({pa
  await expect(page.locator('.hero h1')).toContainText('窗外是佛罗伦萨');
 });
 
-test('hero actions, scroll prompt and envelope remain separated at short desktop heights',async({page})=>{
+test('poem and signature remain separated from the envelope at short desktop heights',async({page})=>{
  for(const [width,height] of [[1440,900],[1366,768],[1280,720],[1024,600],[390,844]]){
   await page.setViewportSize({width,height});
   for(const locale of ['/','/zh/']){
    await page.goto(locale);await page.evaluate(()=>document.fonts.ready);
    expect(await page.locator('.hero h1 span').evaluateAll(lines=>lines.every(line=>line.scrollWidth<=line.clientWidth+1)),`${width} ${locale}: the complete quote must remain inside the hero`).toBe(true);
+   await expect(page.locator('.hero-actions,.hero-scroll,.hero-subtitle,.hero-intro')).toHaveCount(0);
    const gap=await page.evaluate(()=>{
-    const actions=document.querySelector('.hero-actions')!.getBoundingClientRect();
-    const prompt=document.querySelector('.hero-scroll')!.getBoundingClientRect();
+    const quote=document.querySelector('.hero h1')!.getBoundingClientRect();
+    const signature=document.querySelector('.hero-signature')!.getBoundingClientRect();
     const envelope=document.querySelector('.hero-envelope')!.getBoundingClientRect();
-    return {actionsToPrompt:prompt.top-actions.bottom,promptToEnvelope:envelope.top-prompt.bottom};
+    return {quoteToSignature:signature.top-quote.bottom,signatureToEnvelope:envelope.top-signature.bottom};
    });
-   expect(gap.actionsToPrompt,`${width}×${height} ${locale}: prompt must clear action buttons`).toBeGreaterThanOrEqual(20);
-   expect(gap.promptToEnvelope,`${width}×${height} ${locale}: prompt must clear envelope`).toBeGreaterThanOrEqual(20);
+   expect(gap.quoteToSignature,`${width}×${height} ${locale}: signature must clear the poem`).toBeGreaterThanOrEqual(15);
+   expect(gap.signatureToEnvelope,`${width}×${height} ${locale}: signature must clear the envelope`).toBeGreaterThanOrEqual(20);
   }
  }
 });
 
 test('each full-page scene really moves and respects the motion switch',async({page})=>{
- for(const [path,kind,file] of [['/zh/','home','letter-garden'],['/zh/projects/','projects','hero-night'],['/zh/projects/weyra/','weyra','weyra-cover'],['/zh/projects/solaceai/','solaceai','solaceai-cover'],['/zh/guestbook/','wall','message-garden'],['/zh/contact/','contact','contact-garden']]){
+ for(const [path,kind,file] of [['/zh/','home','profile-day'],['/zh/projects/','projects','projects-day'],['/zh/projects/weyra/','weyra','projects-day'],['/zh/projects/solaceai/','solaceai','projects-day'],['/zh/guestbook/','wall','wall-day'],['/zh/contact/','contact','contact-day']]){
   await page.goto(path);await expect(page.locator('.route-scenery')).toHaveAttribute('data-scene',kind);
-  const art=page.locator('.route-scenery-art');await expect(art).toHaveCSS('background-image',new RegExp(file));
+  const art=page.locator('.route-scenery-art');await expect(art.locator('img')).toHaveAttribute('src',new RegExp(file));
   await expect(art).toHaveCSS('animation-name','route-scenery-drift');
   const before=await art.evaluate(el=>getComputedStyle(el).transform);await page.waitForTimeout(160);
   expect(await art.evaluate(el=>getComputedStyle(el).transform)).not.toBe(before);

@@ -349,7 +349,7 @@ def test_owner_can_sign_in_without_nickname_and_profile_link_requires_session(pr
         assert response.status_code == 200
         session = response.json()
         assert session['user']['role'] == 'admin'
-        assert session['user']['nickname'] == 'Owner Example'
+        assert session['user']['nickname'] == 'Eugene'
         headers = {'Authorization': 'Bearer ' + session['token']}
         assert c.get('/admin/messages', headers=headers).status_code == 200
         assert c.get('/profile/links/github', headers=headers).json() == {'url': 'https://github.com/example'}
@@ -365,10 +365,10 @@ def test_existing_owner_session_has_canonical_name_without_reverification(previe
             db.execute('INSERT INTO messages(id,name,message,created_at,user_id,status) VALUES (?,?,?,?,?,?)',
                        ('owner-old', 'Old owner name', 'An older owner note.', '2026-10-27T00:00:00Z', owner['user']['id'], 'approved'))
         response = c.get('/auth/me', headers={'Authorization': 'Bearer ' + owner['token']})
-        assert response.json()['user']['nickname'] == 'Owner Example'
+        assert response.json()['user']['nickname'] == 'Eugene'
         c.cookies.clear()
         assert c.get('/messages?page=1').json()['messages'][0]['name'] == 'Eugene'
-        assert c.get('/messages/mine', headers={'Authorization': 'Bearer ' + owner['token']}).json()['messages'][0]['name'] == 'Owner Example'
+        assert c.get('/messages/mine', headers={'Authorization': 'Bearer ' + owner['token']}).json()['messages'][0]['name'] == 'Eugene'
 
 
 def test_verification_template_is_safe_and_has_matching_plain_text():

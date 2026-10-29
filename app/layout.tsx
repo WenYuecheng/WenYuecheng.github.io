@@ -9,6 +9,8 @@ import '@fontsource/mali/latin-600.css';
 import '@fontsource/zcool-kuaile/400.css';
 import './globals.css';
 import './storybook.css';
+import './garden.css';
+import './correspondence.css';
 import { Shell } from '../components/Shell';
 import { AuthProvider } from '../components/Auth';
 import { site } from '../data/site';

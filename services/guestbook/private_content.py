@@ -4,7 +4,9 @@ from pathlib import Path
 
 from fastapi import HTTPException
 
-ASSET_IDS = frozenset({'portrait', 'weyra', 'solaceai', 'emblem'})
+PUBLIC_NAME = 'Eugene'
+PUBLIC_PORTRAIT = '/images/visitor-fox-original.webp'
+ASSET_IDS = frozenset({'weyra', 'solaceai', 'emblem'})
 PROJECT_FIELDS = ('slug', 'tags', 'coverAsset', 'backdrop', 'accent', 'links')
 COPY_FIELDS = ('title', 'kicker', 'summary', 'description')
 ADMIN_FIELDS = ('role', 'architecture', 'features', 'stages', 'walkthrough')

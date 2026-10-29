@@ -20,8 +20,8 @@ test('anonymous reader has only public identity, avatar, wall and email',async({
  await page.goto('/contact/');await expect(page.locator('.email-address')).toHaveCount(0);await expect(page.locator('.social-contact')).toHaveCount(0);
  await page.goto('/guestbook/');await expect(page.locator('#main')).toBeVisible();
 });
-test('member sees private profile and two project blocks, then logout clears them',async({page})=>{
- await account(page,'user');await page.goto('/');await expect(page.locator('.intro-card')).toContainText('PRIVATE_PROFILE_BIO');await expect(page.locator('.academic-metrics')).toBeVisible();await expect(page.locator('.portrait-frame img')).toHaveAttribute('src',/^blob:/);
+test('member sees permitted education and projects with the public fox identity, then logout clears private data',async({page})=>{
+ await account(page,'user');await page.goto('/');await expect(page.locator('.intro-card')).toContainText('welcome to my website');await expect(page.locator('body')).not.toContainText('PRIVATE_PROFILE_BIO');await expect(page.locator('.academic-metrics')).toBeVisible();await expect(page.locator('.portrait-frame img')).toHaveAttribute('src','/images/visitor-fox-original.webp');
  await page.goto('/projects/weyra/');await expect(page.locator('.detail-intro')).toContainText('MEMBER_SUMMARY');await expect(page.locator('#links')).toBeVisible();await expect(page.locator('#architecture,#implementation,#walkthrough,#evidence,#notes')).toHaveCount(0);
  await page.goto('/auth/');await page.getByRole('button',{name:'Sign out',exact:true}).click();await page.goto('/');await expect(page.locator('.hero-signature')).toContainText('Eugene');await expect(page.locator('.academic-metrics')).toHaveCount(0);
  await page.goBack();await expect(page.locator('body')).not.toContainText('PRIVATE_PROFILE_BIO');

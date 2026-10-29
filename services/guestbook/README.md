@@ -13,10 +13,11 @@ defaults. Normalized email addresses are private to the account and administrato
 
 ## API contract
 
-All POST requests require JSON. Errors are `{"error":"concise message"}`; 429
+All POST, PATCH, and DELETE requests require JSON. Errors are `{"error":"concise message"}`; 429
 also returns `Retry-After` seconds. Authentication is `Authorization: Bearer TOKEN`.
-All responses use `Cache-Control: no-store`. No cookies or browser credentials
-are needed; CORS allows the Authorization header.
+The main site can also restore sessions with its same-site HttpOnly cookie;
+cookie-authenticated writes require an allowed Origin. All responses use
+`Cache-Control: no-store`. CORS allows the Authorization header and these methods.
 
 | Method | Internal path | Request / response |
 | --- | --- | --- |
@@ -31,18 +32,50 @@ are needed; CORS allows the Authorization header.
 | GET | `/messages/mine` | Bearer → newest 60 own messages, each including status |
 | GET | `/admin/messages?status=pending` | Admin bearer → newest 100 matching messages, with status/email/reviewedAt when present; status can also be approved/rejected |
 | POST | `/admin/messages/{id}/review` | Admin bearer and `{decision:"approved"\|"rejected"}` → updated admin message |
+| GET | `/updates?page=1&pageSize=10&locale=zh` | Anonymous → `{updates:[{id,body,createdAt,updatedAt}],page,pageSize,total,totalPages}` |
+| GET | `/admin/updates?page=1&pageSize=10&locale=zh` | Admin → same page, each record also has `bodyZh,bodyEn` |
+| POST | `/admin/updates` | Admin and `{bodyZh,bodyEn?}` → 201 record with source fields |
+| PATCH | `/admin/updates/{id}` | Admin and `{bodyZh,bodyEn?}` → edited record with source fields |
+| DELETE | `/admin/updates/{id}` | Admin and `{}` → 204; unknown record 404 |
 | GET | `/projects/{slug}/links/{key}` | Bearer → `{url}` from fixed HTTPS server mapping; unknown key 404 |
 | GET | `/dev/mailbox?email=...` | Explicit local development only → `{messages:[{email,code,createdAt}]}` |
 
 The protected project link keys are `weyra/github` and `solaceai/demo`. This protects disclosure
 through this API; the linked destinations retain their own access policies.
 
-Messages are trimmed and limited to 1–500 characters. Each normalized education email receives a stable, collision-checked eight-digit alias derived using the private HMAC salt: `Visitor 12345678` in English and `访客12345678` in Chinese. The mapping is persisted independently of caller input. Existing custom names migrate without changing account IDs or valid sessions; owner names always follow the configured identity. Legacy `nickname` input is accepted only for compatibility and ignored.
+Messages are trimmed and limited to 1–500 characters. Each normalized education email receives a stable, collision-checked eight-digit alias derived using the private HMAC salt: `Visitor 12345678` in English and `访客12345678` in Chinese. The mapping is persisted independently of caller input. Existing custom names migrate without changing account IDs or valid sessions; the owner's displayed name is always `Eugene` for every role and language. Legacy `nickname` input is accepted only for compatibility and ignored.
+
+`/content/home` returns the public `name` and `portraitUrl` plus permitted education/contact fields. Withdrawn private identity, biography, interest blocks, admission status and `portraitAsset` are omitted. `/content/assets/portrait` returns404 even for authenticated accounts; all pages use the same static fox avatar. The original private configuration/files stay outside web roots and are not deleted by this presentation change.
+
+An optional string `home[locale].interestsNote` in the external private configuration supplies the member-only interests paragraph. It is returned only by authenticated `/content/home` and appears after the public welcome for signed-in members and the owner. Anonymous, pending, unavailable and signed-out states display only the public welcome, with no interests paragraph. Keep the actual detailed note out of public source and static exports; synchronize it through the protected content workflow when publication is approved.
 An optional legacy POST `name` is validated but the authenticated nickname is
 authoritative. `website` is a honeypot: an authenticated filled request gets a
 fake pending 201 object without a write. All content remains plain text; clients
 must use normal framework text escaping, never HTML insertion. Emails/statuses
 are never included in public message responses.
+
+Updates are public plain-text posts by Eugene, with no account identity fields.
+Chinese copy is required (1–1500 characters after trimming); English is optional
+(0–3000 characters) and falls back to Chinese when empty. Unknown fields, nulls,
+and non-string values are rejected. POST and PATCH return Chinese `body` plus both
+source fields. PATCH replaces both source fields, so omitting English clears it.
+Clients must render copy as escaped text; literal HTML is stored as text.
+
+Both update lists default to Chinese, page 1, and ten records per page. `locale`
+accepts only `zh` or `en`; `pageSize` accepts 1–10 (the home page requests 3), and
+`page` accepts 1–100000. Pages are clamped to the last page after deletion; empty
+lists have page 1 and `totalPages:1`. Posts sort by creation time, newest first,
+with deterministic insertion ordering for equal timestamps. Editing preserves
+`createdAt` and only changes `updatedAt`. Both timestamps are UTC ISO strings;
+the frontend displays them in Beijing time.
+
+The additive SQLite migration creates `site_updates` and a `site_migrations`
+marker without resetting existing accounts, messages, or sessions. On its first
+application it inserts the initial bilingual paper-organization update using
+the current server time. The marker persists independently of the post, so
+deleting that post (or all posts) never recreates it on restart. Apply the local
+migration only after the real reading import is prepared; publication remains
+an explicit operator step.
 
 ## Local preview (no real email)
 
@@ -189,7 +222,7 @@ Do not put mail credentials, session tokens, or other secrets in this content fi
     "zh": {"profile": {}, "education": {"values": []}, "interests": []}
   },
   "projects": [],
-  "assets": {"portrait": "assets/portrait.webp"},
+  "assets": {"emblem": "assets/emblem.webp"},
   "github": "https://github.com/example",
   "csdn": "https://blog.csdn.net/example",
   "projectLinks": {"sample": {"github": "https://github.com/example/project"}}
@@ -204,13 +237,16 @@ copy fields. Project metrics, notes, scope, courses, and coursework are excluded
 from the content responses. The `links` array contains labels and keys; actual
 destinations remain in the private `projectLinks` mapping.
 
-`GET /content/home?locale=en|zh` requires a valid bearer and returns `name`,
-`portraitAsset`, `profile`, `education`, `interests`, and `contact: {csdn}`.
+`GET /content/home?locale=en|zh` requires a valid session and returns the public
+`name`, `portraitUrl`, permitted `education`, and role-filtered `contact`.
+Legacy `identity`, `profile`, and `interests` configuration fields may remain
+for compatibility, but are not used as displayed identity or returned by this route.
 `GET /content/projects?locale=en|zh` returns `{projects: [...]}` and
 `GET /content/projects/{slug}?locale=en|zh` returns `{project: ...}` with the
 server-derived role projection. No query or browser role controls authorization.
-`GET /content/assets/{id}` requires a bearer; only `portrait`, `weyra`,
-`solaceai`, and `emblem` IDs are allowed. Configured paths must resolve to image files inside
+`GET /content/assets/{id}` requires a session; only `weyra`,
+`solaceai`, and `emblem` IDs are allowed. The original portrait is withdrawn.
+Configured paths must resolve to image files inside
 the content directory, including when symlinks are involved.
 
 The application can start without private content so existing authentication and
@@ -223,9 +259,7 @@ responses, including optional-bearer `/messages`, use `Cache-Control: no-store`.
 Responses vary on Authorization. Logout invalidates the token for subsequent
 content and image requests.
 
-`GET /messages?locale=en|zh` accepts an optional bearer. Owner-authored message
-names use Eugene for anonymous viewers, the configured English identity for
-members, and the requested configured locale for administrators. Other authors
-retain their chosen names. `/auth/me?locale=en|zh` also localizes the owner's
-account nickname. Existing accounts, messages, and educational registration
-remain intact.
+`GET /messages?locale=en|zh` accepts an optional session. Owner-authored message
+names use Eugene for every viewer and language. Other authors use their generated
+visitor aliases. `/auth/me?locale=en|zh` also returns Eugene for the owner.
+Existing accounts, messages, and educational registration remain intact.

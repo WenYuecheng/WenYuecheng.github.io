@@ -54,7 +54,7 @@ test('blocked entry starts on first ordinary click and respects a later pause',a
   HTMLMediaElement.prototype.play=function(){if(++attempts===1)return Promise.reject(new DOMException('Gesture required','NotAllowedError'));return play.call(this);};
  });
  await page.goto('/zh/');await expect(page.locator('.music-copy small')).toHaveText('点击，让旋律开始');
- await page.locator('.hero-actions').getByRole('link',{name:'看看我的项目'}).click();
+ await page.locator('.footer-links').getByRole('link',{name:'项目',exact:true}).click();
  await expect(page).toHaveURL('/zh/projects/');
  await expect.poll(()=>page.locator('audio').evaluate(a=>(a as HTMLAudioElement).currentTime)).toBeGreaterThan(0.1);
  await page.getByRole('button',{name:'暂停音乐',exact:true}).click();

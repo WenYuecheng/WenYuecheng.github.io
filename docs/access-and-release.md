@@ -1,6 +1,6 @@
 # Public and authenticated content
 
-Public pages use the Eugene persona in both languages. Verified member and owner display names come from private configuration. Only the owner’s configured email grants administrator permissions; custom nicknames are not accepted. Each visitor mailbox receives a fixed eight-digit alias; owner names retain the configured locale-aware identity.
+All visitor roles see the Eugene persona and the same fox avatar in both languages. The withdrawn private identity and biography cannot override the public welcome; the original portrait endpoint is disabled. Only the owner’s configured email grants administrator permissions; custom nicknames are not accepted. Each visitor mailbox receives a fixed eight-digit alias; the owner's displayed nickname is always Eugene.
 
 Keep actual identity, academic data, original portrait, runtime screenshots, project details and external link destinations in the external readonly private content directory. The server projects a member allowlist and additional owner fields. Private responses are not cacheable, and browser state and image object URLs are discarded on logout, expiry, error or role changes.
 
@@ -10,7 +10,7 @@ Website email registration remains open to eligible educational mailboxes. Solac
 
 Before deploying, test every role, missing/expired credentials, direct routes and assets, logout/back navigation, both locales, and desktop/mobile. Verify content fields and private assets through authenticated probes without paid model calls. Inspect final public artifacts and remove stale public resources. Do not increase existing provider budgets.
 
-The public avatar uses the original glasses-wearing fox photograph obtained by the site owner from its creator at its original resolution. Authenticated portraits remain private. Browser autoplay restrictions can require a gesture. No unverified filing or licensing assertion is displayed.
+The shared avatar uses the original glasses-wearing fox photograph obtained by the site owner from its creator at its original resolution. The former personal portrait is not served to any account. Browser autoplay restrictions can require a gesture. No unverified filing or licensing assertion is displayed.
 
 Public contact surfaces expose only the configured Xiaohongshu profile. Mail addresses are supplied by the protected home response: members see the configured administrator mailbox, and the owner sees the private owner contact mailbox. Keep the latter in private content configuration. Anonymous HTML and scripts contain neither address.
 

@@ -1,0 +1,289 @@
+{
+  "schemaVersion": 1,
+  "inventoryDate": "2026-10-29",
+  "datePolicy": "addedAt is the original source mtime; paperDate is the first arXiv submission or publisher online date, null when not established.",
+  "sources": [
+    {
+      "file": "2101.03961v3.pdf",
+      "paperId": "2101.03961v3",
+      "sha256": "f340f6ace31abf7d0730ef461404279f40d3c890e9cc2daeb7068b3304afdbd6",
+      "addedAt": "2026-09-18T12:39:23.369013Z"
+    },
+    {
+      "file": "2104.07857v1.pdf",
+      "paperId": "2104.07857v1",
+      "sha256": "6b291a9bf12fe52d6eafda2ec69d65cbab59db046cf27d8ecb4912331dc402c1",
+      "addedAt": "2026-09-21T08:44:30.013567Z"
+    },
+    {
+      "file": "2104.09864v5.pdf",
+      "paperId": "2104.09864v5",
+      "sha256": "e9a481fbe1c8a20b7b1fa566b13102a1896c7829fa9a8b4c80528452a5ddaf79",
+      "addedAt": "2026-09-18T12:35:30.636326Z"
+    },
+    {
+      "file": "2106.09685v2.pdf",
+      "paperId": "2106.09685v2",
+      "sha256": "e9a0d3128767db616085dc0f4e6e455e672e89af823e8ed1282793682787395a",
+      "addedAt": "2026-09-22T06:49:42.600092Z"
+    },
+    {
+      "file": "2205.14135v2.pdf",
+      "paperId": "2205.14135v2",
+      "sha256": "ca7f9fda10b90fc05dd291a3accc85e9c1a4a860b99b31928dab03ed3fcb14e4",
+      "addedAt": "2026-09-18T12:38:35.987091Z"
+    },
+    {
+      "file": "2302.13971v1.pdf",
+      "paperId": "2302.13971v1",
+      "sha256": "2e663675ae36ad12adb2f5a05281bac2747ecf8d23d92bedd9f937a89fee7136",
+      "addedAt": "2026-09-18T12:41:59.777318Z"
+    },
+    {
+      "file": "2304.08485v2.pdf",
+      "paperId": "2304.08485v2",
+      "sha256": "dc8bace378a282ea78caa9b5959306202fbfa3b8cedaf8a66541a9af18f4d3bf",
+      "addedAt": "2026-09-14T11:56:00.492359Z"
+    },
+    {
+      "file": "2305.13245v3.pdf",
+      "paperId": "2305.13245v3",
+      "sha256": "ba9094fe73db9bf515d47ae8b2d502fee9d8a6c7b1327e197ddb160f4c63b94a",
+      "addedAt": "2026-09-18T12:43:04.717408Z"
+    },
+    {
+      "file": "2309.00071v3.pdf",
+      "paperId": "2309.00071v3",
+      "sha256": "e7c0268a796138460c6ba2f67a7cba5bd922c401aea94c1fcd09c4b76b883c85",
+      "addedAt": "2026-09-22T06:14:23.113109Z"
+    },
+    {
+      "file": "2312.00752v2.pdf",
+      "paperId": "2312.00752v2",
+      "sha256": "adf70ed1803c85b1899dec3e21f3af0b124411439e8654b840ea65f7b9f52b2e",
+      "addedAt": "2026-09-18T12:44:36.003366Z"
+    },
+    {
+      "file": "2401.06066v1.pdf",
+      "paperId": "2401.06066v1",
+      "sha256": "a64b509e1410d09cf5b70570788d27790985fb9808ce436b9da8de73f2eed651",
+      "addedAt": "2026-09-18T12:47:17.718609Z"
+    },
+    {
+      "file": "2402.07148v2.pdf",
+      "paperId": "2402.07148v2",
+      "sha256": "2320644fc41910421f37298dd071e810c2b32bb8cff734f89893073b650b26e3",
+      "addedAt": "2026-09-22T06:58:59.716496Z"
+    },
+    {
+      "file": "2405.04434v5.pdf",
+      "paperId": "2405.04434v5",
+      "sha256": "f149f9c09aa8b46ce6a740a255a99b7cc2317ac5b065989339919b7e6c329c9b",
+      "addedAt": "2026-09-18T12:48:04.620332Z"
+    },
+    {
+      "file": "2405.09818v2.pdf",
+      "paperId": "2405.09818v2",
+      "sha256": "a937480c856ba915e93de1419b37c5572cf8e52f6490ce6a05d8aeff389b0d18",
+      "addedAt": "2026-09-15T06:08:59.526433Z"
+    },
+    {
+      "file": "2405.21060v1.pdf",
+      "paperId": "2405.21060v1",
+      "sha256": "6fe16414fa471a5ab150cddcba5840d3a94e347e96992c50c12c1fb8b919479f",
+      "addedAt": "2026-09-18T12:49:13.489995Z"
+    },
+    {
+      "file": "2408.03326v3.pdf",
+      "paperId": "2408.03326v3",
+      "sha256": "5322de2d2185bd6c215efe8a5e5e692dd2ed9df5de4f3e476ca45675e9ffd6d1",
+      "addedAt": "2026-09-15T07:25:01.599944Z"
+    },
+    {
+      "file": "2409.12191v2.pdf",
+      "paperId": "2409.12191v2",
+      "sha256": "30bb0f6c9babf910295d6b7cd34b6f54824236f68782664c3c93fbf4803275d0",
+      "addedAt": "2026-09-15T04:55:34.819931Z"
+    },
+    {
+      "file": "2409.19606v3.pdf",
+      "paperId": "2409.19606v3",
+      "sha256": "0cd241378f0ed951356af778399112d722636661efc0087292c07e13bc5fb1e7",
+      "addedAt": "2026-09-18T12:57:32.897647Z"
+    },
+    {
+      "file": "2412.06464v3.pdf",
+      "paperId": "2412.06464v3",
+      "sha256": "55f84f2ae9c4e52ff494bfa699499867f5e9e17514994ac71de43888363a5fb9",
+      "addedAt": "2026-09-18T12:52:58.567743Z"
+    },
+    {
+      "file": "2412.19437v2.pdf",
+      "paperId": "2412.19437v2",
+      "sha256": "812a3fd645c80725354de9d831a6785503007a60681461407f64e97305fa9330",
+      "addedAt": "2026-09-18T12:52:03.739531Z"
+    },
+    {
+      "file": "2502.11089v2.pdf",
+      "paperId": "2502.11089v2",
+      "sha256": "2314e53e3c122a839b14724e4a5096a208f0317d02cca21cc6962e52e070c74e",
+      "addedAt": "2026-09-18T12:54:00.806468Z"
+    },
+    {
+      "file": "2502.13923v1.pdf",
+      "paperId": "2502.13923v1",
+      "sha256": "399a28f6ed79f4ece29cca93993fceb56fc304b1d779e49392aec05aff45aba5",
+      "addedAt": "2026-09-16T05:33:45.208770Z"
+    },
+    {
+      "file": "2503.12937v2.pdf",
+      "paperId": "2503.12937v2",
+      "sha256": "09f2187d58249a64c94ac6f832c43656bed27b30004f9873c52d4f6a01c498e0",
+      "addedAt": "2026-09-16T06:12:09.777349Z"
+    },
+    {
+      "file": "2508.18265v2.pdf",
+      "paperId": "2508.18265v2",
+      "sha256": "7cec38fe73c626625a00c9c7ab1d17b24f2740c6a8d7a46ed66fc32c6f8b31ee",
+      "addedAt": "2026-09-16T08:48:51.335814Z"
+    },
+    {
+      "file": "2509.26490v2.pdf",
+      "paperId": "2509.26490v2",
+      "sha256": "3b899382a095f5dc3aa2e6e49daed912ecdb0a9d40d640afadf815908815618e",
+      "addedAt": "2026-10-09T12:15:19.450383Z"
+    },
+    {
+      "file": "2510.14967v2.pdf",
+      "paperId": "2510.14967v2",
+      "sha256": "f25c38d66d573c940a0fa4519bce8bc5d2f7b898754816fbd030bbd441254344",
+      "addedAt": "2026-09-22T12:32:06.726250Z"
+    },
+    {
+      "file": "2510.26692v2.pdf",
+      "paperId": "2510.26692v2",
+      "sha256": "e2e23a449fc9bb27e34e783d20b2e6cd0f1ac67d58efdc0479c03c54db956a17",
+      "addedAt": "2026-09-18T12:55:11.719923Z"
+    },
+    {
+      "file": "2511.18437v1.pdf",
+      "paperId": "2511.18437v1",
+      "sha256": "77c36601d52ac212057645a2de1d22b50b7cf017998335812058b26942e8f00a",
+      "addedAt": "2026-09-17T07:38:17.493064Z"
+    },
+    {
+      "file": "2511.21631v2.pdf",
+      "paperId": "2511.21631v2",
+      "sha256": "ee075d08e67de1148d6437c6c1d481f7894183b8793905a2deb5f62664f49380",
+      "addedAt": "2026-09-16T11:13:56.585311Z"
+    },
+    {
+      "file": "2512.02556v1.pdf",
+      "paperId": "2512.02556v1",
+      "sha256": "2bec0671778769c159ec389412727d1f3d4889fe1c71564b61edaa24705bd17b",
+      "addedAt": "2026-09-21T05:40:05.112789Z"
+    },
+    {
+      "file": "2512.08296v1.pdf",
+      "paperId": "2512.08296v1",
+      "sha256": "185122525d91812857b9bf52fae46bb85eb9cb70e964a3ca5850cba94aded660",
+      "addedAt": "2026-10-09T09:06:07.701656Z"
+    },
+    {
+      "file": "2512.13564v2.pdf",
+      "paperId": "2512.13564v2",
+      "sha256": "10de3c050903bfa1113c9a954380e2786f42d25a9ea24478bf6cc69fef2e2b42",
+      "addedAt": "2026-09-22T11:38:32.964992Z"
+    },
+    {
+      "file": "2512.24880v2.pdf",
+      "paperId": "2512.24880v2",
+      "sha256": "d849f4709ed29bfb2751f51e24dc836403f31271d1764dddfba0768d326a75d9",
+      "addedAt": "2026-09-18T12:58:12.339187Z"
+    },
+    {
+      "file": "2602.15763v2.pdf",
+      "paperId": "2602.15763v2",
+      "sha256": "e20742ff36e08dc361de6973f7f72ad38e107edf8fd92d2a777a8428fc9b8f0e",
+      "addedAt": "2026-09-21T05:35:54.098079Z"
+    },
+    {
+      "file": "2603.15031v1.pdf",
+      "paperId": "2603.15031v1",
+      "sha256": "444673994328f7be8aee9d96fb240596b6f254f06ebaa53a2673413a244198c9",
+      "addedAt": "2026-10-23T08:42:29.599424Z"
+    },
+    {
+      "file": "2606.19348v1.pdf",
+      "paperId": "2606.19348v1",
+      "sha256": "55b2d72f772ac00de2e470b3ee08443c648d971c7f57c52d6202895665e5978d",
+      "addedAt": "2026-09-21T07:31:56.998620Z"
+    },
+    {
+      "file": "2607.24653v2.pdf",
+      "paperId": "2607.24653v2",
+      "sha256": "1a21e4d15de52eb0d4cf09cdbffc6248c497ba6897572cc5574af237c13da51d",
+      "addedAt": "2026-09-18T12:59:40.756359Z"
+    },
+    {
+      "file": "DeepSeek_OCR_paper.pdf",
+      "paperId": "deepseek-ocr",
+      "sha256": "5191ef012b406c86d7ca8cf5a286d24d9e758428a59d149913fe0517fa59c6ac",
+      "addedAt": "2026-09-17T13:46:34.720209Z"
+    },
+    {
+      "file": "DeepSeek_V3_2.pdf",
+      "paperId": "deepseek-v3-2-exp",
+      "sha256": "f8ef04ddf50f924a7d251861d4453d7605ff5711f3941ae8320e1ea780dc3041",
+      "addedAt": "2026-09-21T07:28:27.468308Z"
+    },
+    {
+      "file": "DeepSeek_V41_Tech_Report.pdf",
+      "paperId": "deepseek-v4-1-flash",
+      "sha256": "ba68e2e40408125ae6d2f63a9a241b61c73910691c74ec1a2a7023c851eac08d",
+      "addedAt": "2026-09-18T13:00:46.169025Z"
+    },
+    {
+      "file": "Liu_Improved_Baselines_with_Visual_Instruction_Tuning_CVPR_2024_paper.pdf",
+      "paperId": "llava-1-5",
+      "sha256": "f3306423165a46ff8c861c0ab8e0012c63ef8ccf4879a7783f1b5411412e6fef",
+      "addedAt": "2026-09-15T07:24:00.564663Z"
+    },
+    {
+      "file": "NeurIPS-2022-flamingo-a-visual-language-model-for-few-shot-learning-Paper-Conference.pdf",
+      "paperId": "flamingo",
+      "sha256": "71c0bc08c6fbe4b54c73e9cdc0842985b685f51b7bab63fa456aac10e5737c58",
+      "addedAt": "2026-09-14T11:49:58.114109Z"
+    },
+    {
+      "file": "NeurIPS-2022-training-language-models-to-follow-instructions-with-human-feedback-Paper-Conference.pdf",
+      "paperId": "instructgpt",
+      "sha256": "4ed5ef926ed5ad385d30ee4319f9b13650da29a3f015bc4e888bd669ee4670e5",
+      "addedAt": "2026-09-14T11:50:41.519146Z"
+    },
+    {
+      "file": "NeurIPS-2023-direct-preference-optimization-your-language-model-is-secretly-a-reward-model-Paper-Conference.pdf",
+      "paperId": "dpo",
+      "sha256": "894386aafb8581f85644773b303dd7cd96377cafe5c23e1b6b442ac6f5884e7c",
+      "addedAt": "2026-09-14T11:56:59.651206Z"
+    },
+    {
+      "file": "li23q.pdf",
+      "paperId": "blip-2",
+      "sha256": "d59913d16edf1dc7e661ca3510c6efaa2b001146840d2e464a7fde980d088dd2",
+      "addedAt": "2026-09-14T11:53:37.760155Z"
+    },
+    {
+      "file": "s41586-025-09422-z.pdf",
+      "paperId": "deepseek-r1-nature",
+      "sha256": "916fdaafc3b44143a9744481d079744f773d73d06372f82b1dba1076525927f2",
+      "addedAt": "2026-09-15T11:53:30.095212Z"
+    },
+    {
+      "file": "s41586-025-10041-x.pdf",
+      "paperId": "emu3-nature",
+      "sha256": "7e5377ca6f62f3e1b56d0d483d0047acb245ac3d35d6228bf7734bc0f3cc5a96",
+      "addedAt": "2026-09-17T02:26:49.256663Z"
+    }
+  ]
+}

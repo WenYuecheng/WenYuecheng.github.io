@@ -3,7 +3,7 @@ import {createContext,useContext,useEffect,useState,type ReactNode,type ImgHTMLA
 import {usePathname} from 'next/navigation';
 import {useAuth} from './Auth';
 import {site,type Locale} from '../data/site';
-export type PrivateHome={name:string;portraitAsset:string;contact:{csdn:string;email?:string};profile:{eyebrow:string;title:string;motto:string;text:string;badge:string;photoAlt:string;interests:string};education:{shortName:string;startYear:string;eyebrow:string;title:string;current:string;degree:string;period:string;admission:string;next:string;nextDegree:string;metrics:string[];values:string[]};interests:{title:string;sub:string;body:string}[]};
+export type PrivateHome={name:string;portraitUrl:string;interestsNote?:string;contact:{csdn:string;email?:string};education:{shortName:string;startYear:string;eyebrow:string;title:string;current:string;degree:string;period:string;next:string;nextDegree:string;metrics:string[];values:string[]}};
 export type PrivateProject={slug:string;tags:string[];coverAsset:string;backdrop:string;accent:string;links:{key:string;label:string;zh?:string}[];title:string;kicker:string;summary:string;description:string;role?:string;architecture?:string[];features?:{title:string;body:string}[];stages?:string[];walkthrough?:string[]};
 export function usePrivateResource<T>(path:string|null){
  const auth=useAuth(),active=!!auth.user&&!auth.loading&&!auth.unavailable;
@@ -16,7 +16,7 @@ const Identity=createContext<{home:PrivateHome|null;name:string;loading:boolean;
 export function PrivateContentProvider({children}:{children:ReactNode}){
  const pathname=usePathname(),locale:Locale=pathname.startsWith('/zh')?'zh':'en';
  const result=usePrivateResource<PrivateHome>(`/content/home?locale=${locale}`);
- return <Identity.Provider value={{home:result.data,name:result.data?.name||site.name,loading:result.loading,error:result.error}}>{children}</Identity.Provider>;
+ return <Identity.Provider value={{home:result.data,name:site.name,loading:result.loading,error:result.error}}>{children}</Identity.Provider>;
 }
 export const useIdentity=()=>useContext(Identity);
 export function PrivateImage({asset,...props}:{asset:string}&Omit<ImgHTMLAttributes<HTMLImageElement>,'src'>){

@@ -1,0 +1,16 @@
+[
+  {
+    "name": "wall-night",
+    "tool": "built-in imagegen",
+    "input": "public/images/generated/message-garden.webp",
+    "master": "artwork/originals/scenes/wall-night.png",
+    "prompt": "Use case: lighting-weather edit. This is an existing original anime website background and the image is the edit target. Create its true late-night counterpart. Preserve the SAME camera, greenhouse on the left, blossom tree and hanging blank wishes on the right, distant lake and town, stone courtyard and writing desk. Change sunset to a deep indigo starry sky with a soft bright moon, silver-blue moonlight, warm amber greenhouse and garden lanterns, restrained firefly points. Keep flowers pink and lush and all architecture in the same places. Painterly premium anime background, tactile refined detail, soft atmospheric depth, inviting quiet mood, clear central space for UI. No people, text, letters on hanging cards, logos, watermark. Landscape 3:2 composition, full bleed. Do not add a collage or UI."
+  },
+  {
+    "name": "contact-night",
+    "tool": "built-in imagegen",
+    "input": "public/images/generated/contact-garden.webp",
+    "master": "artwork/originals/scenes/contact-night.png",
+    "prompt": "Use case: lighting-weather edit. This existing original anime website illustration is the edit target. Make a faithful moonlit NIGHT counterpart of exactly the same seaside letter garden. Preserve the same viewpoint and composition: green mailbox and blank cream envelope at right stone wall, roses framing right/top, flower-bordered stepping path and tiny gate, sea and distant coastal hills. Replace bright daytime with deep clear indigo sky, luminous full moon and sparse stars, a silver moon reflection across the sea, subtle warm porch lantern light on roses/mailbox/envelope, gentle fireflies over the flowers. Rich blue/mauve/soft amber palette, premium hand-painted anime environment with delicate detail and readable quiet space for webpage text. No people, no text, no logo, no watermark. Keep mailbox/envelope geometry and scenery, do not make a collage. Landscape 3:2 full bleed."
+  }
+]

@@ -4,6 +4,10 @@ The Sakura particle behavior, click ripple primitive and page transition primiti
 
 The six anime illustrations were generated specifically for this portfolio using the prompts recorded in `docs/art-prompts.md`. Original masters are in `artwork/originals/`; optimized website images are in `public/images/generated/`. The portrait is the owner's existing photograph. The page composition, content, typography, project walkthroughs and visual identity are original to this site.
 
+The Reading and Updates modules also adapt the memoized text/topic filtering and chronological author/text presentation from the same project's `DailyBriefing.tsx` and `MomentList.tsx`, at the same commit. Their unmodified sources are retained as `vendor/xinghui/DailyBriefing.original.tsx` and `vendor/xinghui/MomentList.original.tsx`. The bibliography, summaries, public update API, access controls and garden styling are this site's additions. No upstream author's posts, paper-reading notes or private configuration are used.
+
+Six additional original day/night garden, study and post-office backgrounds were generated with the built-in imagegen tool on 2026-10-29. Prompts, master locations and responsive output mapping are documented in `docs/garden-artwork.md`.
+
 Fonts: Source Sans 3 (Adobe) and Cormorant Garamond (Christian Thalmann), distributed through Fontsource under their included open font licenses. Icons: Lucide, ISC license. Other dependency licenses remain with their respective packages.
 
 CUHK emblem: original image hosted on [CUHK's official mission and emblem page](https://www.cuhk.edu.hk/english/aboutus/mission.html), [source JPG](https://www.cuhk.edu.hk/english/images/aboutus/logo.jpg). Stored locally as `public/images/education/cuhk-emblem.jpg` and used as a decorative background for the education/admission card. The emblem belongs to The Chinese University of Hong Kong.

@@ -33,21 +33,26 @@ async function contrast(locator:Locator){
  return Math.min(...ratios);
 }
 
-for(const theme of ['light','dark'])test(`${theme} labels and actions meet 4.5 on composed surfaces`,async({page},info)=>{
+for(const theme of ['light','dark'])for(const prefix of ['', '/zh'])test(`${theme} ${prefix||'en'} labels and actions meet 4.5 on composed surfaces`,async({page},info)=>{
+ test.setTimeout(60000);
  await page.addInitScript(theme=>{localStorage.setItem('yuecheng-theme',theme);localStorage.setItem('yuecheng-motion','off');},theme);
  await privateAccount(page,'admin');
  await page.route('**/messages/mine?**',route=>route.fulfill({json:{messages:[]}}));
  await page.route(/\/messages(?:\?.*)?$/,route=>route.fulfill({json:{messages:Array.from({length:4},(_,i)=>({id:i,name:'A visitor',message:'A note for contrast checks.',createdAt:'2026-10-26T10:00:00Z'}))}}));
+ await page.route(/\/updates(?:\?.*)?$/,route=>route.fulfill({json:{updates:[{id:'contrast-note',body:'论文整理完成，阅读页已经开放。 Reading links are now public.',createdAt:'2026-10-29T10:00:00Z',updatedAt:'2026-10-29T10:00:00Z'}],page:1,pageSize:10,total:1,totalPages:1}}));
  const results:{page:string;selector:string;ratio:number}[]=[];
- for(const prefix of ['', '/zh'])for(const [path,selectors] of [
+ for(const [path,selectors] of [
   ['/guestbook/',['.wall-heading .section-kicker','.wall-heading>p:last-child','.compose-intro','.wall-message-label>span','.wall-message-label>small','.form-bottom>p','.form-bottom .primary','.pinned-note footer','.signed-author>small']],
   ['/contact/',['.contact-hero .hero-greeting','.contact-hero .wrap>p:last-child','.email-address','.copy-button','.social-contact>span','.guestbook-invitation p:last-child']],
   ['/',['.hero-greeting','.hero-subtitle','.hero-intro','.hero-outline','.hero-contact-link','.hero-scroll','.academic-metrics span','.wordmark small','.intro-card p','.admission-top','.admission-status','.school-header small','.project-tags span','.site-footer>small','.text-link']],
   ['/projects/',['.page-banner .hero-greeting','.page-banner .wrap>p:last-child']],
+  ['/reading/',['.journal-intro','.journal-marginalia','.journal-controls label','.reading-count','.reading-card:first-child .paper-summary','.reading-card:first-child .paper-tags span','.reading-card:first-child .paper-link']],
+  ['/updates/',['.journal-intro','.journal-marginalia','.update-card:first-child p','.update-card:first-child time']],
   ['/projects/solaceai/',['.project-detail-hero .back-link','.detail-summary','.detail-tags span','.walkthrough-top','.flow-stages button','.flow-description p']],
   ['/projects/weyra/',['.project-detail-hero .back-link','.detail-summary','.detail-tags span','.walkthrough-top','.flow-stages button','.flow-description p']],
  ] as const){
   await page.goto(`${prefix}${path}`);await page.evaluate(()=>document.fonts.ready);
+  await page.locator('.route-scenery-art img').evaluate(e=>(e as HTMLImageElement).decode());
   if(theme==='dark')await expect(page.locator('html')).toHaveClass('dark');
   if(path.startsWith('/projects/')&&path!=='/projects/')await expect(page.locator('.walkthrough')).toBeVisible();
   if(path==='/')await expect(page.locator('.academic-metrics')).toBeVisible();
