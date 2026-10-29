@@ -22,7 +22,7 @@ Background music respects browser autoplay restrictions and can be enabled durin
 
 Updates are public, with three on the home and ten per page. The existing administrator page provides plain-text publish/edit/delete controls; Chinese is required and English is optional. Only the server-authorized owner can mutate records. Updates use the existing SQLite database and its backup process. The new routes and bilingual admin forms require the accompanying backend update before release.
 
-See [artwork provenance and asset policy](docs/garden-artwork.md) and [local acceptance handoff](docs/reading-garden-handoff.md). This upgrade is held for owner review before synchronizing either public host.
+See [artwork provenance and asset policy](docs/garden-artwork.md), [local acceptance handoff](docs/reading-garden-handoff.md), and the [approved production release](docs/releases/2026-10-29-reading-garden.md). The owner approved publication on 2026-10-29; the primary host and GitHub Pages now serve this upgrade.
 
 ## Checks
 
