@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+test.beforeEach(async({page})=>{await page.route('**/opening/scene.json',r=>r.fulfill({json:{enabled:false}}));});
 
 test('a malformed public updates response leaves the home and bibliography usable',async({page})=>{
  await page.addInitScript(()=>localStorage.setItem('yuecheng-motion','off'));

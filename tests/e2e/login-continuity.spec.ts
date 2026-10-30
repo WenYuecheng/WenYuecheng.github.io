@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+test.beforeEach(async({page})=>{await page.route('**/opening/scene.json',r=>r.fulfill({json:{enabled:false}}));});
 const token='s'.repeat(43),expiresAt=new Date(Date.now()+8*3600_000).toISOString();
 const user={id:'same-visitor',email:'reader@school.edu',nickname:'月下听风的小狐狸',role:'user'};
 test.beforeEach(async({page})=>{

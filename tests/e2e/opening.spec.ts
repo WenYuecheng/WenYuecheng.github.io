@@ -20,19 +20,19 @@ test('configured frames open, brighten and automatically enter home',async({page
  expect(await page.locator('.site-experience').evaluate(el=>(el as HTMLElement).inert)).toBe(false);
  await expect(page.locator('body')).not.toHaveCSS('overflow','hidden');
 });
-test('refresh replays the opening while client navigation does not',async({page})=>{
- await configured(page);await page.goto('/zh/');await page.getByRole('button',{name:'跳过动画'}).click();await expect(page.locator('.opening-scene')).toHaveCount(0);
+test('refresh and returning home both replay the opening',async({page})=>{
+ await configured(page);await page.goto('/zh/');await page.locator('.opening-skip').click();await expect(page.locator('.opening-scene')).toHaveCount(0);
  await page.reload();await expect(page.locator('.opening-scene')).toBeVisible();
- await page.getByRole('button',{name:'跳过动画'}).click();
+ await page.locator('.opening-skip').click();
  await page.locator('.footer-links').getByRole('link',{name:'项目',exact:true}).click();
- await page.locator('.wordmark').click();await expect(page.locator('.hero h1')).toBeVisible();await expect(page.locator('.opening-scene')).toHaveCount(0);
+ await page.locator('.wordmark').click();await expect(page.locator('.opening-scene')).toBeVisible();
 });
-test('Escape skips and reduced motion bypasses opening',async({page})=>{
+test('Escape skips only this playback and reduced motion still gets the opening',async({page})=>{
  await configured(page);await page.goto('/');await expect(page.locator('.opening-scene')).toBeVisible();await page.keyboard.press('Escape');await expect(page.locator('.opening-scene')).toHaveCount(0);
- await page.evaluate(()=>sessionStorage.clear());await page.emulateMedia({reducedMotion:'reduce'});await page.reload();await expect(page.locator('.hero h1')).toBeVisible();await expect(page.locator('.opening-scene')).toHaveCount(0);
+ await page.emulateMedia({reducedMotion:'reduce'});await page.reload();await expect(page.locator('.opening-scene')).toBeVisible();await expect(page.locator('.opening-art')).toHaveCSS('animation-name','opening-color');await page.keyboard.press('Escape');
 });
-test('motion preference and image failure never block the site',async({page})=>{
- await configured(page);await page.addInitScript(()=>localStorage.setItem('yuecheng-motion','off'));await page.goto('/zh/');await expect(page.locator('.opening-scene')).toHaveCount(0);
+test('saved background motion preference does not bypass the opening and image failure releases the gate',async({page})=>{
+ await configured(page);await page.addInitScript(()=>localStorage.setItem('yuecheng-motion','off'));await page.goto('/zh/');await expect(page.locator('.opening-scene')).toBeVisible();await expect(page.locator('.opening-art')).toHaveCSS('animation-name','opening-color');await expect(page.locator('html')).toHaveAttribute('data-motion','off');await page.keyboard.press('Escape');
  await page.evaluate(()=>localStorage.removeItem('yuecheng-motion'));
  await page.route('**/images/opening/*.webp',r=>r.abort());await page.reload();await expect(page.locator('.hero h1')).toBeVisible();await expect(page.locator('.opening-scene')).toHaveCount(0);
  expect(await page.locator('.site-experience').evaluate(el=>(el as HTMLElement).inert)).toBe(false);
@@ -95,6 +95,20 @@ test('blocked video sound still permits motion and a real click enables the supp
  await page.keyboard.press('Escape');
 });
 
+test('phone autoplay restrictions still show the animated fallback with background motion disabled',async({page})=>{
+ await page.addInitScript(()=>{
+  localStorage.setItem('yuecheng-motion','off');
+  const play=HTMLMediaElement.prototype.play;
+  HTMLMediaElement.prototype.play=function(){return this instanceof HTMLVideoElement?Promise.reject(new DOMException('Low-power autoplay restriction','NotAllowedError')):play.call(this);};
+ });
+ await page.emulateMedia({reducedMotion:'reduce'});
+ await page.goto('/zh/');
+ await expect(page.locator('.opening-scene')).toHaveAttribute('data-media','poster');
+ await expect(page.locator('.opening-art')).toHaveCSS('animation-name','opening-color');
+ await expect(page.locator('.opening-scene')).toBeVisible();
+ await page.keyboard.press('Escape');await expect(page.locator('.opening-scene')).toHaveCount(0);
+});
+
 test('failure to obtain a canvas context still releases the opening',async({page})=>{
  await page.addInitScript(()=>{HTMLCanvasElement.prototype.getContext=(()=>null) as typeof HTMLCanvasElement.prototype.getContext;});
  await page.goto('/');await expect(page.locator('.opening-scene')).toBeVisible();
@@ -144,14 +158,27 @@ test('slow opening artwork stays above home and hands off without a home flash',
  await expect(page.locator('.hero h1')).toBeVisible();
 });
 
-test('the early gate releases at its deadline if application scripts never arrive',async({page})=>{
+test('slow application scripts cannot silently skip the opening after twelve seconds',async({page})=>{
  await page.clock.install();const requests:import('@playwright/test').Route[]=[];
  await page.route('**/_next/static/**/*.js',route=>{requests.push(route);});
  await page.goto('/',{waitUntil:'commit'});await expect(page.locator('#opening-bootstrap')).toBeVisible();
  await page.clock.fastForward(12500);
- await expect(page.locator('html')).toHaveAttribute('data-opening','complete');
- await expect(page.locator('#opening-bootstrap')).toBeHidden();await expect(page.locator('.hero h1')).toBeVisible();
+ await expect(page.locator('html')).toHaveAttribute('data-opening','pending');
+ await expect(page.locator('#opening-bootstrap')).toBeVisible();await expect(page.locator('.site-experience')).toBeHidden();
+ await page.locator('#opening-bootstrap-skip').click();await expect(page.locator('.hero h1')).toBeVisible();
  for(const route of requests)await route.abort();
+});
+
+test('a slow mobile poster cannot consume the opening before it starts',async({page})=>{
+ await page.clock.install();const waiting:import('@playwright/test').Route[]=[];let configured=false;
+ const image=await readFile('public/images/generated/hero-night.webp');
+ await page.route('**/opening/scene.json',route=>{configured=true;return route.fulfill({json:scene});});
+ await page.route('**/images/opening/*.webp',route=>{waiting.push(route);});
+ await page.goto('/zh/',{waitUntil:'commit'});await expect.poll(()=>configured).toBe(true);
+ await page.clock.fastForward(12500);
+ await expect(page.locator('#opening-bootstrap')).toBeVisible();await expect(page.locator('.site-experience')).toBeHidden();
+ for(const route of waiting)await route.fulfill({body:image,contentType:'image/webp'});
+ await expect(page.locator('.opening-scene')).toBeVisible();await page.keyboard.press('Escape');
 });
 
 
@@ -173,4 +200,36 @@ test('an explicit intro mute stays muted when entering the home page',async({pag
  await page.keyboard.press('Escape');await expect(page.locator('.opening-scene')).toHaveCount(0);
  expect(await page.locator('#site-audio').evaluate(a=>(a as HTMLAudioElement).paused)).toBe(true);
  await page.waitForTimeout(250);expect(await page.locator('#site-audio').evaluate(a=>(a as HTMLAudioElement).paused)).toBe(true);
+});
+
+
+test('browser history cache restoration restarts the opening from the beginning',async({page})=>{
+ await configured(page);await page.goto('/zh/');await expect(page.locator('.opening-scene')).toBeVisible();await page.keyboard.press('Escape');
+ await page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true})));
+ await expect(page.locator('.opening-scene')).toBeVisible();await page.keyboard.press('Escape');
+ await expect(page.locator('.site-experience')).not.toHaveAttribute('inert','');
+});
+
+test('restoring a playing video restarts at the first frame instead of resuming midway',async({page})=>{
+ await page.goto('/zh/');const video=page.locator('.opening-video');
+ await expect(page.locator('.opening-scene')).toHaveAttribute('data-media','video');
+ await expect.poll(()=>video.evaluate(el=>(el as HTMLVideoElement).currentTime)).toBeGreaterThan(1.2);
+ await page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true})));
+ await expect.poll(()=>video.evaluate(el=>(el as HTMLVideoElement).currentTime)).toBeLessThan(1);
+ await expect(page.locator('.opening-scene')).toBeVisible();await page.keyboard.press('Escape');
+});
+
+test('entering a shared inner-page link also shows the opening and keeps its destination',async({page})=>{
+ await configured(page);await page.goto('/zh/reading/');await expect(page.locator('.opening-scene')).toBeVisible();
+ await page.keyboard.press('Escape');await expect(page).toHaveURL('/zh/reading/');
+ await expect(page.locator('.journal-page')).toBeVisible();
+});
+
+test('returning to the mobile home tab from the background replays the opening',async({page})=>{
+ await configured(page);await page.goto('/zh/');await expect(page.locator('.opening-scene')).toBeVisible();await page.keyboard.press('Escape');
+ await page.evaluate(()=>{
+  Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));
+  Object.defineProperty(document,'hidden',{configurable:true,value:false});document.dispatchEvent(new Event('visibilitychange'));
+ });
+ await expect(page.locator('.opening-scene')).toBeVisible();await page.keyboard.press('Escape');
 });

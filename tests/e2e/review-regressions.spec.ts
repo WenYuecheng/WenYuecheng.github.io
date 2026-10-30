@@ -1,4 +1,5 @@
 import {test,expect,type Page} from '@playwright/test';
+test.beforeEach(async({page})=>{await page.route('**/opening/scene.json',r=>r.fulfill({json:{enabled:false}}));});
 const base='**',token='t'.repeat(43),expiresAt=new Date(Date.now()+3600_000).toISOString();
 const user={id:'user-1',nickname:'Test student',email:'visitor@university.edu.cn',role:'user'};
 const note={id:'note-1',name:user.nickname,message:'A note for the owner.',createdAt:'2026-10-26T10:00:00Z',status:'pending'};

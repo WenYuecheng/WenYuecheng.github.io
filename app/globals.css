@@ -165,20 +165,20 @@ html[data-motion=off] .envelope-seal{opacity:1}
 
 /* Condensation glass: one right-to-left reveal, followed by the actual sunset. */
 @property --opening-progress{syntax:'<number>';inherits:true;initial-value:0}
-.opening-scene{position:fixed;inset:0;z-index:200;background:#080e1b;color:#fff8ed;isolation:isolate;overflow:hidden;--opening-progress:0;animation:opening-clock var(--opening-duration) linear both,opening-depart var(--opening-duration) ease both}
+html .opening-scene{position:fixed;inset:0;z-index:200;background:#080e1b;color:#fff8ed;isolation:isolate;overflow:hidden;--opening-progress:0;animation:opening-clock var(--opening-duration) linear both,opening-depart var(--opening-duration) ease both!important}
 .opening-landscape,.opening-landscape img,.opening-glass,.opening-fog-fallback,.opening-night,.opening-sunlight,.opening-sun-rays,.opening-sun-dust{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .opening-landscape img,.opening-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:var(--opening-focus-x) var(--opening-focus-y)}
-.opening-art,.opening-video,.opening-glass{animation:opening-color var(--opening-duration) linear both}
+html .opening-scene .opening-art,html .opening-scene .opening-video,html .opening-scene .opening-glass{animation:opening-color var(--opening-duration) linear both!important}
 .opening-ambient{display:none}
 .opening-glass{z-index:3}
-.opening-fog-fallback{z-index:2;background:#e8f3f80a;backdrop-filter:blur(18px);animation:opening-fog-fallback var(--opening-duration) ease both}
+html .opening-scene .opening-fog-fallback{z-index:2;background:#e8f3f80a;backdrop-filter:blur(18px);animation:opening-fog-fallback var(--opening-duration) ease both!important}
 .opening-scene[data-glass=ready] .opening-fog-fallback{display:none}
-.opening-night{z-index:4;background:#030817;animation:opening-night-lift var(--opening-duration) linear both}
-.opening-sunlight{z-index:1;background:radial-gradient(ellipse at var(--opening-sun-x) var(--opening-sun-y),#fff9caae, #ffcc7040 15%,#eda47114 38%,transparent 64%);mix-blend-mode:screen;animation:opening-sunrise var(--opening-duration) ease both}
-.opening-sun-rays{z-index:1;inset:auto;left:var(--opening-sun-x);top:var(--opening-sun-y);width:170vmax;height:170vmax;background:conic-gradient(from 218deg,transparent 0deg,#ffe8b11a 6deg,transparent 13deg 27deg,#ffeab520 30deg,transparent 37deg 52deg,#fff2ce24 55deg,transparent 66deg 360deg);transform:translate(-50%,-50%) rotate(-3deg);transform-origin:center;mix-blend-mode:screen;animation:opening-rays var(--opening-duration) ease both}
-.opening-sun-dust{z-index:5;animation:opening-sunrise var(--opening-duration) ease both}
-.opening-sun-dust i{position:absolute;width:2px;height:2px;border-radius:50%;background:#fff0c7;box-shadow:0 0 9px 2px #ffd28d33;animation:opening-mote 5s ease-in-out infinite}
-.opening-title-block{position:absolute;z-index:6;right:6%;bottom:8%;width:fit-content;max-width:55%;text-align:right;text-shadow:0 2px 20px #251727,0 1px 4px #21162588;animation:opening-lettering var(--opening-duration) ease both}
+html .opening-scene .opening-night{z-index:4;background:#030817;animation:opening-night-lift var(--opening-duration) linear both!important}
+html .opening-scene .opening-sunlight{z-index:1;background:radial-gradient(ellipse at var(--opening-sun-x) var(--opening-sun-y),#fff9caae, #ffcc7040 15%,#eda47114 38%,transparent 64%);mix-blend-mode:screen;animation:opening-sunrise var(--opening-duration) ease both!important}
+html .opening-scene .opening-sun-rays{z-index:1;inset:auto;left:var(--opening-sun-x);top:var(--opening-sun-y);width:170vmax;height:170vmax;background:conic-gradient(from 218deg,transparent 0deg,#ffe8b11a 6deg,transparent 13deg 27deg,#ffeab520 30deg,transparent 37deg 52deg,#fff2ce24 55deg,transparent 66deg 360deg);transform:translate(-50%,-50%) rotate(-3deg);transform-origin:center;mix-blend-mode:screen;animation:opening-rays var(--opening-duration) ease both!important}
+html .opening-scene .opening-sun-dust{z-index:5;animation:opening-sunrise var(--opening-duration) ease both!important}
+html .opening-scene .opening-sun-dust i{position:absolute;width:2px;height:2px;border-radius:50%;background:#fff0c7;box-shadow:0 0 9px 2px #ffd28d33;animation:opening-mote 5s ease-in-out infinite!important}
+html .opening-scene .opening-title-block{position:absolute;z-index:6;right:6%;bottom:8%;width:fit-content;max-width:55%;text-align:right;text-shadow:0 2px 20px #251727,0 1px 4px #21162588;animation:opening-lettering var(--opening-duration) ease both!important}
 .opening-site-title{font-family:var(--serif);font-size:clamp(40px,5vw,72px);line-height:1.1;letter-spacing:.025em;color:#fff9ed}
 .opening-welcome{font-size:clamp(12px,1.25vw,17px);letter-spacing:.06em;margin-top:15px;line-height:1.7;color:#fff6e8}
 .opening-skip{position:absolute;z-index:15;top:24px;right:24px;display:flex;align-items:center;gap:10px;background:#111c2bcc;color:#fff8ed;border:1px solid #fff1d75c;border-radius:30px;padding:10px 17px;font:13px system-ui,sans-serif;backdrop-filter:blur(12px);cursor:pointer}
@@ -201,8 +201,6 @@ html[data-motion=off] .envelope-seal{opacity:1}
  .opening-skip{top:18px;right:18px;font-size:12px;padding:9px 13px}
  .opening-scene .opening-sound{top:18px;left:18px;font-size:12px;padding:9px 13px}
 }
-@media(prefers-reduced-motion:reduce){.opening-scene{display:none}}
-html[data-motion=off] .opening-scene{display:none}
 
 /* Flow-based hero spacing keeps controls apart at every viewport height. */
 .hero{height:auto;min-height:clamp(840px,100svh,980px)}

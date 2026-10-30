@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+test.beforeEach(async({page})=>{await page.route('**/opening/scene.json',r=>r.fulfill({json:{enabled:false}}));});
 import { createRequire } from 'node:module';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { resolve, join } from 'node:path';

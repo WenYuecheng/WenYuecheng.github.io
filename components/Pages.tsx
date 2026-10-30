@@ -1,7 +1,5 @@
 'use client';
 import type {CSSProperties} from 'react';
-import openingConfig from '../public/opening/scene.json';
-import {parseOpeningScene} from '../lib/opening';
 import Link from 'next/link';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, BookOpen, BrainCircuit, ChevronRight, Code2, Coffee, ExternalLink, Flower2, GitBranch, GraduationCap, Heart, Layers3, Mail, MessageCircle, Sparkles, Terminal } from 'lucide-react';
 import { content, routeFor, site, type Locale } from '../data/site';
@@ -22,7 +20,7 @@ function LockedPanel({locale,heading}:{locale:Locale;heading?:string}){return <d
 export function ProjectCard({project,locale,compact=false}:{project:PrivateProject;locale:Locale;compact?:boolean}){const p=project,t=content[locale];return <Link className={`project-card glass ${project.accent} ${compact?'compact':''}`} href={routeFor(locale,`/projects/${project.slug}/`)}><div className="project-cover"><PrivateImage asset={project.coverAsset} alt={p.title} loading="lazy" width="1536" height="1024"/><span className="project-open-icon"><ArrowUpRight size={22}/></span><span className="cover-name">{p.title}</span></div><div className="project-card-body"><div className="project-tags">{project.tags.map(tag=><span key={tag}>{tag}</span>)}</div><h3>{p.title}</h3><p>{p.summary}</p><span className="card-link">{t.projects.open}<ArrowRight size={17}/></span></div></Link>;}
 export function HomePage({locale}:{locale:Locale}) {
  const {home,name}=useIdentity(),catalog=usePrivateResource<{projects:PrivateProject[]}>(`/content/projects?locale=${locale}`);
- const base=content[locale],t={...base,name},opening=parseOpeningScene(openingConfig);return <PageTransition>{opening&&<link rel="preload" as="image" href={opening.image} fetchPriority="high"/>}<main id="main" className="home-page">
+ const base=content[locale],t={...base,name};return <PageTransition><main id="main" className="home-page">
  <section className="hero"><div className="hero-art"><img className="day-art" src={site.art.day} alt="" fetchPriority="high" width="1536" height="1024"/><img className="night-art" src={site.art.night} alt="" width="1536" height="1024"/></div><div className="hero-shade"/>
  <div className="hero-content"><h1 className="hero-letter-quote">{t.hero.title.split('\n').map((v,i)=><span key={i}>{v}</span>)}</h1><div className="hero-signature">{t.name}<i>✦</i></div></div><EnvelopeTransition/>
  <EnvelopeInvitation locale={locale}/>

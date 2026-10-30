@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+test.beforeEach(async({page})=>{await page.route('**/opening/scene.json',r=>r.fulfill({json:{enabled:false}}));});
 
 for(const theme of ['light','dark'])for(const locale of ['en','zh']){
  test(`garden surfaces ${locale} ${theme}`,async({page},info)=>{

@@ -14,8 +14,8 @@ import './correspondence.css';
 import { Shell } from '../components/Shell';
 import { AuthProvider } from '../components/Auth';
 import { site } from '../data/site';
-import {OpeningGate,openingBootstrap,openingGateStyles} from '../components/OpeningGate';
+import {OpeningGate,openingBootstrap,openingGateStyles,openingPoster} from '../components/OpeningGate';
 import {PrivateContentProvider} from '../components/PrivateContent';
 import {EarlyAudio} from '../components/EarlyAudio';
 export const metadata:Metadata={metadataBase:new URL(site.url),title:{default:'Eugene — Agents, RSI & PEFT',template:'%s · Eugene'},description:'Eugene’s personal universe: agents, recursive self-improvement and parameter-efficient fine-tuning. A place for curiosity and conversations.',icons:{icon:'/favicon.svg'},openGraph:{type:'website',siteName:'Eugene',images:[{url:'/images/generated/hero-day.webp',width:1536,height:1024}]},twitter:{card:'summary_large_image'}};
-export default function RootLayout({children}:{children:React.ReactNode}) {return <html lang="en" suppressHydrationWarning><head><style dangerouslySetInnerHTML={{__html:openingGateStyles}}/><script dangerouslySetInnerHTML={{__html:openingBootstrap}}/></head><body><EarlyAudio/><OpeningGate/><AuthProvider><PrivateContentProvider><Shell>{children}</Shell></PrivateContentProvider></AuthProvider></body></html>;}
+export default function RootLayout({children}:{children:React.ReactNode}) {return <html lang="en" suppressHydrationWarning><head>{openingPoster&&<link rel="preload" as="image" href={openingPoster} fetchPriority="high"/>}<style dangerouslySetInnerHTML={{__html:openingGateStyles}}/><script dangerouslySetInnerHTML={{__html:openingBootstrap}}/></head><body><EarlyAudio/><OpeningGate/><AuthProvider><PrivateContentProvider><Shell>{children}</Shell></PrivateContentProvider></AuthProvider></body></html>;}

@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+test.beforeEach(async({page})=>{await page.route('**/opening/scene.json',r=>r.fulfill({json:{enabled:false}}));});
 import {privateAccount,privateHome} from './private-fixture';
 test.beforeEach(async({page})=>{await page.addInitScript(()=>localStorage.setItem('yuecheng-motion','off'));});
 test('anonymous pages reveal only the public social profile',async({page})=>{

@@ -1,4 +1,5 @@
 import{test,expect}from'@playwright/test';
+test.beforeEach(async({page})=>{await page.route('**/opening/scene.json',r=>r.fulfill({json:{enabled:false}}));});
 import{PRIVACY_VERSION}from'../../data/legal';
 test.beforeEach(async({page})=>{await page.addInitScript(()=>localStorage.setItem('yuecheng-motion','off'));await page.route('**/auth/config',r=>r.fulfill({json:{deliveryMode:'smtp',devMailbox:false,privacyVersion:PRIVACY_VERSION}}));});
 for(const locale of ['en','zh'])test(`${locale}: explicit agreement gates code and signup; both notices remain public`,async({page},info)=>{
