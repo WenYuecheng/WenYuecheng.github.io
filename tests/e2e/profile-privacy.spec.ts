@@ -25,7 +25,8 @@ for(const locale of ['zh','en'] as const)test(`${locale}: welcome and fox identi
   await expect(page.locator('.intro-card')).toContainText(locale==='zh'?'欢迎光临我的网站':'welcome to my website');
   await expect(page.locator('.intro-card>p')).toHaveCount(1);
   await expect(page.locator('.intro-card')).not.toContainText(locale==='zh'?'乒乓球':'table tennis');
-  await expect(page.locator('#interests,.interest-card,.admission-status')).toHaveCount(0);
+  await expect(page.locator('.admission-status')).toHaveCount(0);
+  await expect(page.locator('#interests .interest-card h4')).toHaveText(['Agent','RSI','PEFT']);
   await expect(page.locator('body')).not.toContainText(/yuechengwen|WITHDRAWN_OLD_BIO|已录取旧状态/);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   if(role==='anonymous')await page.locator('#profile').screenshot({path:`test-results/profile-public-${locale}-${info.project.name}.png`,animations:'disabled'});

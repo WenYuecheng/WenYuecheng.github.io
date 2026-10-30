@@ -6,19 +6,20 @@ test.beforeEach(async({page})=>{
 });
 
 for(const locale of ['zh','en'] as const){
- test(`${locale} welcome replaces the old research blocks and remains readable`,async({page})=>{
+ test(`${locale} welcome includes the restored research areas and remains readable`,async({page})=>{
   await privateAccount(page);
   await page.goto(locale==='zh'?'/zh/':'/');
   const intro=page.locator('.intro-card');
-  await expect(page.locator('#interests')).toHaveCount(0);
+  await expect(page.locator('#interests')).toHaveCount(1);
   await expect(intro.locator('.signature-line,.inline-topics')).toHaveCount(0);
-  await expect(intro.locator('.interest-card')).toHaveCount(0);
+  await expect(intro.locator('.interest-card')).toHaveCount(3);
+  await expect(intro.locator('.interest-card h4')).toHaveText(['Agent','RSI','PEFT']);
   await expect(intro.locator(':scope > p')).toHaveCount(1);
   await expect(intro).toContainText(locale==='zh'?'欢迎光临我的网站':'welcome to my website');
   const blocks=await page.locator('.intro-card > p,#education').evaluateAll(nodes=>nodes.map(n=>n.getBoundingClientRect().top+scrollY));
   expect(blocks).toHaveLength(2);expect(blocks[0]).toBeLessThan(blocks[1]);
   await intro.scrollIntoViewIfNeeded();
-  const cards=await intro.locator(':scope > p').evaluateAll(nodes=>nodes.map(n=>{const r=n.getBoundingClientRect();return{x:r.x,right:r.right,width:r.width,height:r.height,overflow:n.scrollWidth>n.clientWidth+1};}));
+  const cards=await intro.locator(':scope > p,.interest-card').evaluateAll(nodes=>nodes.map(n=>{const r=n.getBoundingClientRect();return{x:r.x,right:r.right,width:r.width,height:r.height,overflow:n.scrollWidth>n.clientWidth+1};}));
   for(const card of cards){expect(card.x).toBeGreaterThanOrEqual(0);expect(card.right).toBeLessThanOrEqual(page.viewportSize()!.width);expect(card.overflow).toBe(false);}
   await expect(page.locator('.portrait-frame img')).toBeVisible();
   await expect(page.locator('.admission-card')).toContainText('2030');
