@@ -8,13 +8,16 @@ from app import create_app
 from test_auth import login, now, preview
 
 
-SEED_ZH = '整理了最近读过的论文，已收录在阅读选刊中。欢迎沿着原文链接继续探索。'
-SEED_EN = 'The papers I have been reading are now collected in Reading. Follow the original links to explore further.'
+FIXTURE_ZH = '站主撰写的测试动态。'
+FIXTURE_EN = 'An owner-authored test update.'
 
 
 @pytest.fixture
 def client(preview, now):
     with TestClient(create_app(preview, clock=lambda: now[0]), base_url='http://localhost', client=('127.0.0.1', 8000)) as client:
+        with sqlite3.connect(preview.db_path) as db:
+            stamp = now[0].isoformat(timespec='milliseconds').replace('+00:00', 'Z')
+            db.execute('INSERT INTO site_updates VALUES (?,?,?,?,?)', ('owner-test-post', FIXTURE_ZH, FIXTURE_EN, stamp, stamp))
         yield client
 
 
@@ -22,19 +25,14 @@ def admin_headers(client):
     return {'Authorization': 'Bearer ' + login(client, 'owner@example.com')['token']}
 
 
-def test_seed_is_public_localized_and_has_no_account_identity(client, now):
-    zh = client.get('/updates?locale=zh')
-    assert zh.status_code == 200
-    data = zh.json()
-    assert {key: data[key] for key in ('page', 'pageSize', 'total', 'totalPages')} == dict(page=1, pageSize=10, total=1, totalPages=1)
-    item = data['updates'][0]
-    assert set(item) == {'id', 'body', 'createdAt', 'updatedAt'}
-    assert item['body'] == SEED_ZH
-    assert item['createdAt'] == item['updatedAt'] == now[0].isoformat(timespec='milliseconds').replace('+00:00', 'Z')
-    assert client.get('/updates?locale=en').json()['updates'][0]['body'] == SEED_EN
-    assert zh.headers['cache-control'] == 'no-store'
-    assert 'Owner Example' not in zh.text and 'owner@example.com' not in zh.text
-    assert client.get('/updates', headers={'Authorization': 'Bearer invalid'}).status_code == 200
+def test_fresh_database_has_no_generated_owner_updates(preview, now):
+    for restart in range(2):
+        with TestClient(create_app(preview, clock=lambda: now[0])) as client:
+            for locale in ('zh', 'en'):
+                response = client.get('/updates?locale=' + locale)
+                assert response.status_code == 200
+                assert response.json() == dict(updates=[], page=1, pageSize=10, total=0, totalPages=1)
+                assert response.headers['cache-control'] == 'no-store'
 
 
 @pytest.mark.parametrize('method,path,payload', [
@@ -161,7 +159,7 @@ def test_restart_persists_updates_sessions_legacy_data_and_never_resurrects_seed
         db.execute('INSERT INTO messages VALUES (?,?,?,?)', ('legacy', 'Legacy', 'Keep me', '2026-01-01T00:00:00Z'))
     with TestClient(create_app(preview, clock=lambda: now[0]), base_url='http://localhost', client=('127.0.0.1', 8000)) as first:
         headers = admin_headers(first)
-        seed = first.get('/updates').json()['updates'][0]
+        seed = first.post('/admin/updates', json={'bodyZh': '由站主发布后删除的动态'}, headers=headers).json()
         item = first.post('/admin/updates', json={'bodyZh': '持久化', 'bodyEn': 'Persistent'}, headers=headers).json()
         assert first.request('DELETE', '/admin/updates/' + seed['id'], json={}, headers=headers).status_code == 204
     now[0] += timedelta(minutes=1)

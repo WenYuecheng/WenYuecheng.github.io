@@ -43,7 +43,7 @@ cookie-authenticated writes require an allowed Origin. All responses use
 The protected project link keys are `weyra/github` and `solaceai/demo`. This protects disclosure
 through this API; the linked destinations retain their own access policies.
 
-Messages are trimmed and limited to 1–500 characters. Each normalized education email receives a stable, collision-checked eight-digit alias derived using the private HMAC salt: `Visitor 12345678` in English and `访客12345678` in Chinese. The mapping is persisted independently of caller input. Existing custom names migrate without changing account IDs or valid sessions; the owner's displayed name is always `Eugene` for every role and language. Legacy `nickname` input is accepted only for compatibility and ignored.
+Messages are trimmed and limited to 1–500 characters. Each normalized education email receives a stable poetic Chinese name, generated with the private HMAC salt and stored with a database UNIQUE constraint. Names contain no email fragments or digits and remain the same in both locales. An odd-step probe resolves collisions across the 32,768-name space; exhaustion refuses allocation rather than reusing a name. Existing accounts are assigned names without changing account IDs or valid sessions; the owner remains `Eugene`. Legacy `nickname` input is accepted only for compatibility and ignored.
 
 `/content/home` returns the public `name` and `portraitUrl` plus permitted education/contact fields. Withdrawn private identity, biography, interest blocks, admission status and `portraitAsset` are omitted. `/content/assets/portrait` returns404 even for authenticated accounts; all pages use the same static fox avatar. The original private configuration/files stay outside web roots and are not deleted by this presentation change.
 
@@ -69,13 +69,11 @@ with deterministic insertion ordering for equal timestamps. Editing preserves
 `createdAt` and only changes `updatedAt`. Both timestamps are UTC ISO strings;
 the frontend displays them in Beijing time.
 
-The additive SQLite migration creates `site_updates` and a `site_migrations`
-marker without resetting existing accounts, messages, or sessions. On its first
-application it inserts the initial bilingual paper-organization update using
-the current server time. The marker persists independently of the post, so
-deleting that post (or all posts) never recreates it on restart. Apply the local
-migration only after the real reading import is prepared; publication remains
-an explicit operator step.
+The additive SQLite schema creates `site_updates` without generating any owner
+posts. A fresh database starts with an empty public list, and restarting never
+recreates deleted posts. Only administrator submissions publish owner updates.
+Database resets are explicit operator actions with backups, never application
+startup behavior.
 
 ## Local preview (no real email)
 

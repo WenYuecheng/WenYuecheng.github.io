@@ -283,8 +283,8 @@ def initialize(settings: Settings, timestamp: float | None = None) -> bytes:
                 UNIQUE(user_id, request_id)
             );
             CREATE INDEX IF NOT EXISTS feedback_daily ON feedback_reports(user_id,day);
-            CREATE TABLE IF NOT EXISTS visitor_aliases (
-                user_id TEXT PRIMARY KEY, number TEXT NOT NULL UNIQUE
+            CREATE TABLE IF NOT EXISTS visitor_poetic_names (
+                user_id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE
             );
             CREATE TABLE IF NOT EXISTS review_audit (
                 id INTEGER PRIMARY KEY, message_id TEXT NOT NULL, actor_id TEXT NOT NULL,
@@ -299,16 +299,8 @@ def initialize(settings: Settings, timestamp: float | None = None) -> bytes:
                 name TEXT PRIMARY KEY, applied_at TEXT NOT NULL
             );
         """)
-        # Record the seed migration independently of its row so deletion is permanent.
+        # Never publish an owner update on startup; only the owner authors posts.
         db.execute('BEGIN IMMEDIATE')
-        migration_time = iso(timestamp if timestamp is not None else datetime.now(timezone.utc).timestamp())
-        applied = db.execute('INSERT OR IGNORE INTO site_migrations(name,applied_at) VALUES (?,?)',
-                             ('reading-garden-initial-update', migration_time)).rowcount
-        if applied:
-            db.execute('INSERT INTO site_updates(id,body_zh,body_en,created_at,updated_at) VALUES (?,?,?,?,?)',
-                       (uuid.uuid4().hex, '整理了最近读过的论文，已收录在阅读选刊中。欢迎沿着原文链接继续探索。',
-                        'The papers I have been reading are now collected in Reading. Follow the original links to explore further.',
-                        migration_time, migration_time))
         for row in db.execute('SELECT * FROM users').fetchall():
             if row['email'] != settings.admin_email.strip().lower():
                 assign_visitor_name(db, salt, row)
@@ -316,26 +308,36 @@ def initialize(settings: Settings, timestamp: float | None = None) -> bytes:
     return salt
 
 
+POETIC_PLACES = '月下 花间 星河 松间 云端 林间 溪边 湖畔 山间 雨后 雪里 风中 竹下 海边 桥畔 亭前 晨光 暮色 春日 夏夜 秋野 冬晴 星野 岚间 岸边 苔上 檐下 柳间 荷畔 远山 晴空 银湾'.split()
+POETIC_ACTIONS = '听风的 拾光的 看云的 寻星的 枕月的 追光的 探春的 赏雨的 观雪的 闻花的 等晴的 捧露的 寄信的 读诗的 写梦的 摘月的 踏歌的 漫游的 偷闲的 晒暖的 寻梦的 逐浪的 望远的 数星的 藏春的 忆夏的 寻秋的 候冬的 栖云的 织梦的 拾叶的 抱月的'.split()
+POETIC_FRIENDS = '小狐狸 小白狐 小赤狐 小雪狐 小花狸 小狸猫 小橘猫 小奶猫 小雪豹 小山鹿 小白鹿 小松鼠 小刺猬 小熊猫 小浣熊 小海獭 小水獭 小海豹 小白鲸 小蓝鲸 小企鹅 小雪兔 小棉兔 小绵羊 小云雀 小夜莺 小青鸟 小白鹭 小蝴蝶 小蜻蜓 小萤火 小团雀'.split()
+
+
 def assign_visitor_name(db: sqlite3.Connection, salt: bytes, row) -> str:
-    alias = db.execute('SELECT number FROM visitor_aliases WHERE user_id=?', (row['id'],)).fetchone()
+    alias = db.execute('SELECT name FROM visitor_poetic_names WHERE user_id=?', (row['id'],)).fetchone()
     if alias:
-        number = alias['number']
+        name = alias['name']
     else:
-        nonce = 0
-        while True:
-            value = digest(salt, 'visitor-name', row['email'] + '\0' + str(nonce))
-            number = str(10000000 + int(value, 16) % 90000000)
-            if not db.execute('SELECT 1 FROM visitor_aliases WHERE number=?', (number,)).fetchone():
+        # An odd step traverses the whole power-of-two name space without repeats.
+        value = int(digest(salt, 'visitor-poetic', row['email']), 16)
+        size = len(POETIC_PLACES) * len(POETIC_ACTIONS) * len(POETIC_FRIENDS)
+        start, step = value % size, ((value >> 32) | 1) % size
+        for nonce in range(size):
+            index = (start + nonce * step) % size
+            place, rest = divmod(index, len(POETIC_ACTIONS) * len(POETIC_FRIENDS))
+            action, friend = divmod(rest, len(POETIC_FRIENDS))
+            name = POETIC_PLACES[place] + POETIC_ACTIONS[action] + POETIC_FRIENDS[friend]
+            if not db.execute('SELECT 1 FROM visitor_poetic_names WHERE name=?', (name,)).fetchone():
                 break
-            nonce += 1
-        db.execute('INSERT INTO visitor_aliases VALUES (?,?)', (row['id'], number))
-    name = 'Visitor ' + number
+        else:
+            raise HTTPException(503, 'Visitor names are temporarily unavailable.')
+        db.execute('INSERT INTO visitor_poetic_names VALUES (?,?)', (row['id'], name))
     db.execute('UPDATE users SET nickname=? WHERE id=?', (name, row['id']))
     return name
 
 
 def visitor_name(name: str, locale: str = 'en') -> str:
-    return ('访客' + name[8:]) if locale == 'zh' and re.fullmatch(r'Visitor \d{8}', name) else name
+    return name
 
 
 def peer_key(request: Request, settings: Settings, salt: bytes) -> str:

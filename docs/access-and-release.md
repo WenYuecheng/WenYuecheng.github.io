@@ -1,6 +1,6 @@
 # Public and authenticated content
 
-All visitor roles see the Eugene persona and the same fox avatar in both languages. The withdrawn private identity and biography cannot override the public welcome; the original portrait endpoint is disabled. Only the owner’s configured email grants administrator permissions; custom nicknames are not accepted. Each visitor mailbox receives a fixed eight-digit alias; the owner's displayed nickname is always Eugene.
+All visitor roles see the Eugene persona and the same fox avatar in both languages. The withdrawn private identity and biography cannot override the public welcome; the original portrait endpoint is disabled. Only the owner’s configured email grants administrator permissions; custom nicknames are not accepted. Each visitor mailbox receives a fixed, unique poetic name; the owner's displayed nickname is always Eugene.
 
 Keep actual identity, academic data, original portrait, runtime screenshots, project details and external link destinations in the external readonly private content directory. The server projects a member allowlist and additional owner fields. Private responses are not cacheable, and browser state and image object URLs are discarded on logout, expiry, error or role changes.
 

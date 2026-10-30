@@ -1,6 +1,23 @@
 import {test,expect} from '@playwright/test';
 import {privateAccount} from './private-fixture';
 test.beforeEach(async({page})=>{await page.route('**/opening/scene.json',r=>r.fulfill({json:{enabled:false}}));});
+for(const locale of ['zh','en'])test(`${locale} opening the letter enters the profile with reduced-motion support`,async({page},info)=>{
+ await page.addInitScript(theme=>localStorage.setItem('yuecheng-theme',theme),locale==='zh'?'dark':'light');
+ for(const reducedMotion of ['no-preference','reduce'] as const){
+  await page.emulateMedia({reducedMotion});await page.goto(locale==='zh'?'/zh/':'/');
+  const invitation=page.getByRole('button',{name:locale==='zh'?'拆开信封':'Open the letter',exact:true});
+  if(reducedMotion==='no-preference'){
+   await page.evaluate(()=>document.fonts.ready);
+   await page.locator(locale==='zh'?'.night-art':'.day-art').evaluate(el=>(el as HTMLImageElement).decode());
+   await page.screenshot({path:`test-results/unseal-${locale}-${info.project.name}.png`,animations:'disabled'});
+  }
+  await expect(invitation).toBeVisible();await invitation.press('Enter');
+  await expect.poll(()=>page.locator('#profile').evaluate(el=>el.getBoundingClientRect().top)).toBeLessThan(page.viewportSize()!.height/2);
+  const headingTop=await page.locator('.profile-heading').evaluate(el=>el.getBoundingClientRect().top);
+  expect(headingTop).toBeGreaterThan(await page.locator('.site-header').evaluate(el=>el.getBoundingClientRect().bottom));
+  if(reducedMotion==='reduce')await expect(page.locator('.envelope-invitation-letters>span').first()).toHaveCSS('animation-name','none');
+ }
+});
 for(const theme of ['light','dark'])test(`${theme} envelope opens and scenic surfaces span their sections`,async({page},info)=>{
  await privateAccount(page);
  await page.addInitScript(theme=>localStorage.setItem('yuecheng-theme',theme),theme);

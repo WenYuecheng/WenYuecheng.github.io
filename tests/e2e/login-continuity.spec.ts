@@ -1,6 +1,6 @@
 import {test,expect} from '@playwright/test';
 const token='s'.repeat(43),expiresAt=new Date(Date.now()+8*3600_000).toISOString();
-const user={id:'same-visitor',email:'reader@school.edu',nickname:'Visitor 12345678',role:'user'};
+const user={id:'same-visitor',email:'reader@school.edu',nickname:'月下听风的小狐狸',role:'user'};
 test.beforeEach(async({page})=>{
  await page.addInitScript(()=>localStorage.setItem('yuecheng-motion','off'));
  await page.route('**/auth/config',r=>r.fulfill({json:{deliveryMode:'smtp',devMailbox:false,privacyVersion:'2026-10-28.2'}}));
@@ -22,6 +22,7 @@ test('server cookie can restore a session without a tab token and expires safely
  let valid=true;
  await page.route('**/auth/me',r=>valid?r.fulfill({json:{expiresAt,user}}):r.fulfill({status:401,json:{error:'expired'}}));
  await page.goto('/zh/auth/');await expect(page.locator('.account-email')).toHaveText(user.email);
+ await expect(page.locator('.auth-card h2')).toHaveText(user.nickname);
  await page.reload();await expect(page.locator('.account-email')).toHaveText(user.email);
  valid=false;await page.reload();await expect(page.locator('.account-email')).toHaveCount(0);await expect(page.locator('input[type=email]')).toBeVisible();
 });

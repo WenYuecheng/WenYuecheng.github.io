@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import {PRIVACY_VERSION} from '../data/legal';
 import { site, type Locale } from '../data/site';
 export type Account={id:string;nickname:string;email:string;role:'user'|'admin'};
-export const accountName=(user:Account,locale:Locale)=>user.role==='admin'?site.name:locale==='zh'&&/^Visitor \d{8}$/.test(user.nickname)?'访客'+user.nickname.slice(8):user.nickname;
+export const accountName=(user:Account,locale:Locale)=>user.role==='admin'?site.name:user.nickname;
 type Session={token:string;expiresAt:string;user:Account};
 type Options={method?:string;body?:unknown;authenticated?:boolean;signal?:AbortSignal;response?:'blob'};
 export class ApiError extends Error {constructor(public status:number,message='Request failed',public retryAfter=0){super(message);}}

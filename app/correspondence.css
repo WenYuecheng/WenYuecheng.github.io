@@ -225,8 +225,22 @@ html[data-motion=off] .scene-ornaments *,html[data-motion=off] .journal-emblem *
   .scene-ornaments *,.journal-emblem * { animation: none!important; }
   .reading-card:hover { transform: none; }
 }
-.envelope-invitation{position:absolute;z-index:3;bottom:100px;left:50%;transform:translateX(-50%);color:rgb(100 77 65 / .62);font-size:12px;line-height:1.8;letter-spacing:.12em;white-space:nowrap;padding:5px 12px;text-align:center;transition:color .2s}
-.envelope-invitation:hover,.envelope-invitation:focus-visible{color:rgb(100 77 65 / .9)}
-.dark .envelope-invitation{color:rgb(240 224 240 / .62)}
-.dark .envelope-invitation:hover,.dark .envelope-invitation:focus-visible{color:rgb(240 224 240 / .9)}
-@media(max-width:600px){.envelope-invitation{bottom:76px;font-size:11px;letter-spacing:.08em}}
+.envelope-invitation{position:absolute;z-index:3;bottom:91px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:12px;min-height:44px;background:none;color:#80546b;font-family:var(--display);font-size:22px;line-height:1.4;letter-spacing:.14em;white-space:nowrap;padding:4px 12px;text-align:center;opacity:clamp(0,calc(1 - var(--envelope-progress,0)*2),1);transition:filter .2s,opacity .3s}
+.envelope-invitation-letters{display:inline-flex;position:relative;text-shadow:0 1px 7px #d4a67f40}
+.envelope-invitation-letters:after{content:'';position:absolute;inset:auto 0 -3px;height:1px;background:linear-gradient(90deg,transparent,#b4856f,transparent);transform:scaleX(.55);transition:transform .35s}
+.envelope-invitation-letters>span{display:inline-block;animation:letter-breathe 4s ease-in-out infinite}
+.envelope-spark{font-family:var(--serif);font-size:15px;color:#b28259;animation:letter-twinkle 3.5s ease-in-out infinite}
+.envelope-spark:last-child{animation-delay:1.4s;font-size:11px}
+.envelope-invitation:hover,.envelope-invitation:focus-visible{filter:drop-shadow(0 0 6px #ce8fa680)}
+.envelope-invitation:hover .envelope-invitation-letters:after,.envelope-invitation:focus-visible .envelope-invitation-letters:after{transform:scaleX(1)}
+.dark .envelope-invitation{color:#edc8e3}.dark .envelope-spark{color:#e6c18b}
+.envelope-invitation.is-opening{opacity:0;pointer-events:none}
+.hero:has(.envelope-invitation.is-opening) .envelope-flap{animation:letter-unseal .7s ease-in-out forwards}
+.hero:has(.envelope-invitation.is-opening) .envelope-seal{animation:letter-seal-release .45s ease-out forwards}
+@keyframes letter-breathe{0%,75%,100%{transform:translateY(0)}85%{transform:translateY(-2px)}}
+@keyframes letter-twinkle{0%,100%{opacity:.45;transform:scale(.8) rotate(-8deg)}50%{opacity:1;transform:scale(1.12) rotate(8deg)}}
+@keyframes letter-unseal{to{transform:rotateX(155deg)}}
+@keyframes letter-seal-release{to{transform:translateY(-25px) scale(.8);opacity:0}}
+html[data-motion=off] .envelope-invitation *,html[data-motion=off] .hero:has(.envelope-invitation.is-opening) .envelope-flap,html[data-motion=off] .hero:has(.envelope-invitation.is-opening) .envelope-seal{animation:none!important;transition:none!important}
+@media(prefers-reduced-motion:reduce){.envelope-invitation *,.hero:has(.envelope-invitation.is-opening) .envelope-flap,.hero:has(.envelope-invitation.is-opening) .envelope-seal{animation:none!important;transition:none!important}}
+@media(max-width:600px){.envelope-invitation{bottom:67px;font-size:18px;gap:9px}}

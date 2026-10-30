@@ -114,8 +114,8 @@ def test_owner_wall_names_follow_viewer_and_locale(content_settings):
         assert c.get('/messages',headers={'Authorization':'Bearer '+owner['token']}).headers['cache-control']=='no-store'
         c.cookies.clear()
         assert names()==['Eugene',member['user']['nickname']]
-        assert names(member['token'],'zh')==['Eugene','访客'+member['user']['nickname'][-8:]]
-        assert names(owner['token'],'zh')==['Eugene','访客'+member['user']['nickname'][-8:]]
+        assert names(member['token'],'zh')==['Eugene',member['user']['nickname']]
+        assert names(owner['token'],'zh')==['Eugene',member['user']['nickname']]
         assert names(owner['token'],'en')==['Eugene',member['user']['nickname']]
         assert c.get('/messages',headers={'Authorization':'Bearer expired'}).status_code==401
         assert c.get('/messages/mine?locale=zh',headers={'Authorization':'Bearer '+owner['token']}).json()['messages'][0]['name']=='Eugene'

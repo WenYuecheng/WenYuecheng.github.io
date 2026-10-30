@@ -11,7 +11,7 @@ import Guestbook from './Guestbook';
 import { Walkthrough } from './Walkthrough';
 import { ProtectedProjectLink } from './AccountPages';
 import { WallScene } from './WallScene';
-import { EnvelopeTransition } from './EnvelopeTransition';
+import { EnvelopeInvitation, EnvelopeTransition } from './EnvelopeTransition';
 import { VerifiedGitHubLink } from './VerifiedGitHubLink';
 import {useAuth} from './Auth';
 import {JournalHome} from './Journal';
@@ -25,7 +25,7 @@ export function HomePage({locale}:{locale:Locale}) {
  const base=content[locale],t={...base,name},opening=parseOpeningScene(openingConfig);return <PageTransition>{opening&&<link rel="preload" as="image" href={opening.image} fetchPriority="high"/>}<main id="main" className="home-page">
  <section className="hero"><div className="hero-art"><img className="day-art" src={site.art.day} alt="" fetchPriority="high" width="1536" height="1024"/><img className="night-art" src={site.art.night} alt="" width="1536" height="1024"/></div><div className="hero-shade"/>
  <div className="hero-content"><h1 className="hero-letter-quote">{t.hero.title.split('\n').map((v,i)=><span key={i}>{v}</span>)}</h1><div className="hero-signature">{t.name}<i>✦</i></div></div><EnvelopeTransition/>
- <a className="envelope-invitation" href="#profile">{locale==='zh'?'打开信封进入我的世界':'Open the envelope, step into my world'}</a>
+ <EnvelopeInvitation locale={locale}/>
  </section>
  <div className="home-content wrap">
  <section id="profile" className="profile-section"><div className="profile-heading"><p className="section-kicker"><Flower2 size={16}/>{t.profile.eyebrow}</p><span className="handwritten">{t.tagline}</span></div><div className="profile-layout">
