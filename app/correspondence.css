@@ -244,3 +244,8 @@ html[data-motion=off] .scene-ornaments *,html[data-motion=off] .journal-emblem *
 html[data-motion=off] .envelope-invitation *,html[data-motion=off] .hero:has(.envelope-invitation.is-opening) .envelope-flap,html[data-motion=off] .hero:has(.envelope-invitation.is-opening) .envelope-seal{animation:none!important;transition:none!important}
 @media(prefers-reduced-motion:reduce){.envelope-invitation *,.hero:has(.envelope-invitation.is-opening) .envelope-flap,.hero:has(.envelope-invitation.is-opening) .envelope-seal{animation:none!important;transition:none!important}}
 @media(max-width:600px){.envelope-invitation{bottom:67px;font-size:18px;gap:9px}}
+.opening-play-prompt{position:absolute;inset:0;z-index:18;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:80px 26px;text-align:center;background:radial-gradient(ellipse at center,#091426b8,transparent 75%);color:#fff6ed;pointer-events:none}
+.opening-play-prompt strong{font-family:var(--serif);font-size:clamp(36px,6vw,58px);font-weight:500;letter-spacing:.03em;text-shadow:0 3px 18px #080e1b}
+.opening-play-prompt p{max-width:29em;font-size:14px;line-height:1.8;color:#eee4ef;text-shadow:0 1px 5px #080e1b}
+.opening-play-button{display:inline-flex;align-items:center;justify-content:center;gap:12px;min-height:48px;padding:13px 24px;border-radius:99px;background:#f6e7ee;color:#47304b;border:1px solid #fff5;box-shadow:0 5px 24px #09091a55;font-size:15px;pointer-events:auto}
+.opening-play-button:focus-visible{outline:3px solid #f0ca8f;outline-offset:6px}

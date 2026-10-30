@@ -16,7 +16,7 @@ Anonymous readers can visit Home, Reading, Updates, Wall and Contact. Education 
 
 Background music respects browser autoplay restrictions and can be enabled during the opening. Theme, motion and language controls remain available. Website artwork is original or accompanied by retained third-party notices. Music distribution rights and applicable hosting requirements must be checked separately.
 
-The opening replays on every fresh entry or reload, including shared inner-page links, return to Home, browser history cache restoration, and bringing the Home tab back from the background. It is independent of background motion preferences. Slow loading keeps the opening gate until the scene is ready or the visitor explicitly skips; blocked video playback uses the animated poster fallback. Original video sound remains subject to the browser's gesture requirement.
+The opening plays on a fresh entry or reload only. Internal links, returning Home, browser history restoration, and foregrounding the tab do not restart it. Phones start the actual video muted and inline; the sound control retains its original soundtrack. WeChat readiness and a direct tap can retry blocked playback. Slow buffering and initial failures keep the video and clear play/retry controls, rather than permanently replacing it with a poster or skipping before playback starts. Background motion preferences remain independent.
 
 ## Reading and updates
 

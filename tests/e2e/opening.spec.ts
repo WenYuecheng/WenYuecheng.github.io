@@ -1,39 +1,45 @@
 import {test,expect} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
-test.use({launchOptions:{args:['--autoplay-policy=no-user-gesture-required']}});
 const scene={enabled:true,image:'/images/opening/sunrise-mist.webp',focusX:50,focusY:50,sunX:94,sunY:69};
 async function configured(page:import('@playwright/test').Page){
  const image=await readFile('public/images/generated/hero-night.webp');
  await page.route('**/opening/scene.json',r=>r.fulfill({json:scene}));
  await page.route('**/images/opening/*.webp',r=>r.fulfill({body:image,contentType:'image/webp'}));
 }
+async function controlledAutoplay(page:import('@playwright/test').Page){
+ await page.addInitScript(()=>{
+  const set=Element.prototype.setAttribute;
+  Element.prototype.setAttribute=function(name,value){if(this instanceof HTMLVideoElement&&name.toLowerCase()==='autoplay')return;set.call(this,name,value);};
+ });
+}
 test('unconfigured artwork leaves home directly accessible',async({page})=>{
  await page.route('**/opening/scene.json',r=>r.fulfill({json:{enabled:false}}));
- await page.goto('/zh/');await expect(page.locator('.hero h1')).toBeVisible();await expect(page.locator('.opening-scene')).toHaveCount(0);
+ await page.goto('/zh/',{waitUntil:'domcontentloaded'});await expect(page.locator('.hero h1')).toBeVisible();await expect(page.locator('.opening-scene')).toHaveCount(0);
  expect(await page.locator('.site-experience').evaluate(el=>(el as HTMLElement).inert)).toBe(false);
 });
 test('configured frames open, brighten and automatically enter home',async({page})=>{
- await configured(page);await page.goto('/zh/');await expect(page.getByRole('dialog',{name:'晨光水雾开屏动画'})).toBeVisible();
+ await configured(page);await page.goto('/zh/',{waitUntil:'domcontentloaded'});await expect(page.getByRole('dialog',{name:'晨光水雾开屏动画'})).toBeVisible();
  expect(await page.locator('.site-experience').evaluate(el=>(el as HTMLElement).inert)).toBe(true);
  await expect(page.locator('.opening-art')).toHaveCSS('animation-name','opening-color');
  await expect(page.locator('.opening-scene')).toHaveCount(0,{timeout:12000});
  expect(await page.locator('.site-experience').evaluate(el=>(el as HTMLElement).inert)).toBe(false);
  await expect(page.locator('body')).not.toHaveCSS('overflow','hidden');
 });
-test('refresh and returning home both replay the opening',async({page})=>{
- await configured(page);await page.goto('/zh/');await page.locator('.opening-skip').click();await expect(page.locator('.opening-scene')).toHaveCount(0);
+test('only fresh entry and refresh replay; returning home does not',async({page})=>{
+ await configured(page);await page.goto('/zh/',{waitUntil:'domcontentloaded'});await page.locator('.opening-skip').click();await expect(page.locator('.opening-scene')).toHaveCount(0);
  await page.reload();await expect(page.locator('.opening-scene')).toBeVisible();
  await page.locator('.opening-skip').click();
  await page.locator('.footer-links').getByRole('link',{name:'项目',exact:true}).click();
- await page.locator('.wordmark').click();await expect(page.locator('.opening-scene')).toBeVisible();
+ await page.locator('.wordmark').click();await expect(page.locator('.hero h1')).toBeVisible();await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));await expect(page.locator('html')).toHaveAttribute('data-opening','complete');await expect(page.locator('.opening-scene')).toHaveCount(0);
 });
 test('Escape skips only this playback and reduced motion still gets the opening',async({page})=>{
- await configured(page);await page.goto('/');await expect(page.locator('.opening-scene')).toBeVisible();await page.keyboard.press('Escape');await expect(page.locator('.opening-scene')).toHaveCount(0);
+ await configured(page);await page.goto('/',{waitUntil:'domcontentloaded'});await expect(page.locator('.opening-scene')).toBeVisible();await page.keyboard.press('Escape');await expect(page.locator('.opening-scene')).toHaveCount(0);
  await page.emulateMedia({reducedMotion:'reduce'});await page.reload();await expect(page.locator('.opening-scene')).toBeVisible();await expect(page.locator('.opening-art')).toHaveCSS('animation-name','opening-color');await page.keyboard.press('Escape');
 });
 test('saved background motion preference does not bypass the opening and image failure releases the gate',async({page})=>{
- await configured(page);await page.addInitScript(()=>localStorage.setItem('yuecheng-motion','off'));await page.goto('/zh/');await expect(page.locator('.opening-scene')).toBeVisible();await expect(page.locator('.opening-art')).toHaveCSS('animation-name','opening-color');await expect(page.locator('html')).toHaveAttribute('data-motion','off');await page.keyboard.press('Escape');
+ await configured(page);await page.addInitScript(()=>localStorage.setItem('yuecheng-motion','off'));await page.goto('/zh/',{waitUntil:'domcontentloaded'});await expect(page.locator('.opening-scene')).toBeVisible();await expect(page.locator('.opening-art')).toHaveCSS('animation-name','opening-color');await expect(page.locator('html')).toHaveAttribute('data-motion','off');await page.keyboard.press('Escape');
  await page.evaluate(()=>localStorage.removeItem('yuecheng-motion'));
+ await page.route('**/opening/scene.json',r=>r.fulfill({json:{...scene,image:'/images/opening/missing-cold-poster.webp'}}));
  await page.route('**/images/opening/*.webp',r=>r.abort());await page.reload();await expect(page.locator('.hero h1')).toBeVisible();await expect(page.locator('.opening-scene')).toHaveCount(0);
  expect(await page.locator('.site-experience').evaluate(el=>(el as HTMLElement).inert)).toBe(false);
 });
@@ -49,7 +55,7 @@ test('real artwork shows the public identity without technical keywords and can 
 
 test('fog clears from the right before the left and completely dissolves, with sunlight anchored to the sun',async({page},info)=>{
  await page.route('**/opening/scene.json',r=>r.fulfill({json:{enabled:true,image:'/images/opening/sunrise-mist.webp',focusX:50,focusY:50,sunX:94,sunY:67}}));
- await page.goto('/zh/');const scene=page.locator('.opening-scene');await expect(scene).toBeVisible();
+ await page.goto('/zh/',{waitUntil:'domcontentloaded'});const scene=page.locator('.opening-scene');await expect(scene).toBeVisible();
  await expect(scene).toHaveAttribute('data-glass','ready');
  const seek=async(time:number)=>{await scene.evaluate((el,t)=>{for(const a of el.getAnimations({subtree:true})){a.pause();a.currentTime=t;}},time);await page.waitForTimeout(100);};
  const opacity=()=>page.locator('.opening-glass').evaluate(el=>{const c=el as HTMLCanvasElement,ctx=c.getContext('2d')!;return {left:ctx.getImageData(Math.round(c.width*.12),Math.round(c.height*.5),1,1).data[3],right:ctx.getImageData(Math.round(c.width*.88),Math.round(c.height*.5),1,1).data[3],width:c.width,height:c.height};});
@@ -67,9 +73,18 @@ test('fog clears from the right before the left and completely dissolves, with s
 });
 
 test('supplied video plays its original soundtrack without overlapping the site music',async({page})=>{
- await page.goto('/');const root=page.locator('.opening-scene'),video=page.locator('.opening-video');
+ // The production static host supports byte ranges; the Python preview does not.
+ const audio=await readFile('public/music/cant-give-up.mp3');
+ await page.route('**/music/cant-give-up.mp3',route=>{
+  const range=/^bytes=(\d+)-(\d*)$/.exec(route.request().headers().range||'');
+  if(!range)return route.fulfill({body:audio,contentType:'audio/mpeg',headers:{'Accept-Ranges':'bytes'}});
+  const start=Number(range[1]),end=Math.min(range[2]?Number(range[2]):audio.length-1,audio.length-1);
+  return route.fulfill({status:206,body:audio.subarray(start,end+1),contentType:'audio/mpeg',headers:{'Accept-Ranges':'bytes','Content-Range':`bytes ${start}-${end}/${audio.length}`}});
+ });
+ await page.goto('/',{waitUntil:'domcontentloaded'});const root=page.locator('.opening-scene'),video=page.locator('.opening-video');
  await expect(root).toHaveAttribute('data-media','video');
  await expect.poll(()=>video.evaluate(v=>(v as HTMLVideoElement).currentTime)).toBeGreaterThan(.2);
+ if(await video.evaluate(v=>(v as HTMLVideoElement).muted))await page.locator('.opening-sound').click();
  expect(await video.evaluate(v=>({muted:(v as HTMLVideoElement).muted,volume:(v as HTMLVideoElement).volume,width:(v as HTMLVideoElement).videoWidth,duration:(v as HTMLVideoElement).duration}))).toMatchObject({muted:false,volume:.65,width:1280});
  expect(await video.evaluate(v=>(v as HTMLVideoElement).duration)).toBeCloseTo(10,1);
  expect(await page.locator('#site-audio').evaluate(a=>(a as HTMLAudioElement).paused)).toBe(true);
@@ -77,41 +92,46 @@ test('supplied video plays its original soundtrack without overlapping the site 
  await page.locator('.opening-sound').click();expect(await video.evaluate(v=>(v as HTMLVideoElement).muted)).toBe(true);
  await page.locator('.opening-sound').click();expect(await video.evaluate(v=>(v as HTMLVideoElement).muted)).toBe(false);
  await page.keyboard.press('Escape');await expect(root).toHaveCount(0);
+ if(await page.locator('#site-audio').evaluate(a=>(a as HTMLAudioElement).paused))await page.getByRole('button',{name:'Play music',exact:true}).click();
  await expect.poll(()=>page.locator('#site-audio').evaluate(a=>(a as HTMLAudioElement).paused)).toBe(false);
 });
 
-test('a failed video falls back to the glass animation and still enters home',async({page})=>{
+test('a first-load network error keeps a retry action and recovers the actual video',async({page})=>{
  await page.route('**/videos/opening/*.mp4',route=>route.abort());
- await page.goto('/');await expect(page.locator('.opening-scene')).toHaveAttribute('data-media','poster');
- await expect(page.locator('.opening-video')).toBeHidden();
- await expect(page.locator('.opening-scene')).toHaveCount(0,{timeout:14000});await expect(page.locator('.hero h1')).toBeVisible();
+ await page.goto('/zh/',{waitUntil:'domcontentloaded'});await expect(page.getByRole('button',{name:'重新加载视频'})).toBeVisible();
+ await expect(page.locator('.opening-video')).not.toHaveAttribute('hidden','');
+ await page.unroute('**/videos/opening/*.mp4');await page.getByRole('button',{name:'重新加载视频'}).click();
+ await expect(page.locator('.opening-scene')).toHaveAttribute('data-media','video');
+ await expect.poll(()=>page.locator('.opening-video').evaluate(el=>(el as HTMLVideoElement).currentTime)).toBeGreaterThan(.2);
+ await page.keyboard.press('Escape');
 });
 
 test('blocked video sound still permits motion and a real click enables the supplied soundtrack',async({page})=>{
- await page.addInitScript(()=>{const play=HTMLMediaElement.prototype.play;let blocked=false;HTMLMediaElement.prototype.play=function(){if(this instanceof HTMLVideoElement&&!this.muted&&!blocked){blocked=true;return Promise.reject(new DOMException('Gesture required','NotAllowedError'));}return play.call(this);};});
- await page.goto('/');await expect(page.locator('.opening-scene')).toHaveAttribute('data-media','video');
+ await page.addInitScript(()=>{const play=HTMLMediaElement.prototype.play;let clicked=false;document.addEventListener('click',()=>{clicked=true;},true);HTMLMediaElement.prototype.play=function(){if(this instanceof HTMLVideoElement&&!this.muted&&!clicked)return Promise.reject(new DOMException('Gesture required','NotAllowedError'));return play.call(this);};});
+ await page.goto('/',{waitUntil:'domcontentloaded'});await expect(page.locator('.opening-scene')).toHaveAttribute('data-media','video');
  await expect(page.locator('html')).toHaveAttribute('data-opening-sound','blocked');
  await page.locator('.opening-sound').click();await expect(page.locator('html')).toHaveAttribute('data-opening-sound','playing');
  await page.keyboard.press('Escape');
 });
 
-test('phone autoplay restrictions still show the animated fallback with background motion disabled',async({page})=>{
+test('phone autoplay restrictions keep the real video available with a visible play action',async({page})=>{
+ await controlledAutoplay(page);
  await page.addInitScript(()=>{
   localStorage.setItem('yuecheng-motion','off');
   const play=HTMLMediaElement.prototype.play;
   HTMLMediaElement.prototype.play=function(){return this instanceof HTMLVideoElement?Promise.reject(new DOMException('Low-power autoplay restriction','NotAllowedError')):play.call(this);};
  });
  await page.emulateMedia({reducedMotion:'reduce'});
- await page.goto('/zh/');
- await expect(page.locator('.opening-scene')).toHaveAttribute('data-media','poster');
- await expect(page.locator('.opening-art')).toHaveCSS('animation-name','opening-color');
+ await page.goto('/zh/',{waitUntil:'domcontentloaded'});
+ await expect(page.getByRole('button',{name:'点击播放开屏',exact:true})).toBeVisible();
+ await expect(page.locator('.opening-video')).not.toHaveAttribute('hidden','');
  await expect(page.locator('.opening-scene')).toBeVisible();
  await page.keyboard.press('Escape');await expect(page.locator('.opening-scene')).toHaveCount(0);
 });
 
 test('failure to obtain a canvas context still releases the opening',async({page})=>{
  await page.addInitScript(()=>{HTMLCanvasElement.prototype.getContext=(()=>null) as typeof HTMLCanvasElement.prototype.getContext;});
- await page.goto('/');await expect(page.locator('.opening-scene')).toBeVisible();
+ await page.goto('/',{waitUntil:'domcontentloaded'});await expect(page.locator('.opening-scene')).toBeVisible();
  await expect(page.locator('.opening-fog-fallback')).toBeVisible();
  await page.keyboard.press('Escape');await expect(page.locator('.hero h1')).toBeVisible();
 });
@@ -182,12 +202,11 @@ test('a slow mobile poster cannot consume the opening before it starts',async({p
 });
 
 
-test('slow video remains behind the black centered-name loading screen until a playable frame exists',async({page})=>{
+test('slow video offers a play action while waiting for the first real frame',async({page})=>{
  await page.route('**/videos/opening/*.mp4',async route=>{await new Promise(resolve=>setTimeout(resolve,3000));await route.continue();});
  await page.goto('/',{waitUntil:'domcontentloaded'});
- await expect(page.locator('#opening-bootstrap')).toBeVisible();await expect(page.locator('#opening-bootstrap strong')).toHaveText('Eugene');
- await expect(page.locator('.site-experience')).toBeHidden();
- await expect(page.locator('#opening-bootstrap')).toHaveCSS('background-color','rgb(0, 0, 0)');
+ await expect(page.locator('.opening-play-prompt')).toBeVisible();await expect(page.locator('.opening-play-prompt strong')).toHaveText('Eugene');
+ await expect(page.locator('.site-experience')).toHaveAttribute('inert','');
  await expect(page.locator('.opening-scene')).toHaveAttribute('data-media','video',{timeout:11000});
  await expect(page.locator('#opening-bootstrap')).toBeHidden();
  await page.keyboard.press('Escape');await expect(page.locator('.hero h1')).toBeVisible();
@@ -195,7 +214,9 @@ test('slow video remains behind the black centered-name loading screen until a p
 
 
 test('an explicit intro mute stays muted when entering the home page',async({page})=>{
- await page.goto('/');await expect(page.locator('html')).toHaveAttribute('data-opening-sound','playing');
+ await page.goto('/',{waitUntil:'domcontentloaded'});await expect(page.locator('.opening-scene')).toHaveAttribute('data-media','video');
+ if(await page.locator('.opening-video').evaluate(v=>(v as HTMLVideoElement).muted))await page.locator('.opening-sound').click();
+ await expect(page.locator('html')).toHaveAttribute('data-opening-sound','playing');
  await page.locator('.opening-sound').click();await expect(page.locator('html')).toHaveAttribute('data-opening-sound','blocked');
  await page.keyboard.press('Escape');await expect(page.locator('.opening-scene')).toHaveCount(0);
  expect(await page.locator('#site-audio').evaluate(a=>(a as HTMLAudioElement).paused)).toBe(true);
@@ -203,20 +224,10 @@ test('an explicit intro mute stays muted when entering the home page',async({pag
 });
 
 
-test('browser history cache restoration restarts the opening from the beginning',async({page})=>{
- await configured(page);await page.goto('/zh/');await expect(page.locator('.opening-scene')).toBeVisible();await page.keyboard.press('Escape');
+test('browser history cache restoration does not start another opening',async({page})=>{
+ await configured(page);await page.goto('/zh/',{waitUntil:'domcontentloaded'});await expect(page.locator('.opening-scene')).toBeVisible();await page.keyboard.press('Escape');
  await page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true})));
- await expect(page.locator('.opening-scene')).toBeVisible();await page.keyboard.press('Escape');
- await expect(page.locator('.site-experience')).not.toHaveAttribute('inert','');
-});
-
-test('restoring a playing video restarts at the first frame instead of resuming midway',async({page})=>{
- await page.goto('/zh/');const video=page.locator('.opening-video');
- await expect(page.locator('.opening-scene')).toHaveAttribute('data-media','video');
- await expect.poll(()=>video.evaluate(el=>(el as HTMLVideoElement).currentTime)).toBeGreaterThan(1.2);
- await page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true})));
- await expect.poll(()=>video.evaluate(el=>(el as HTMLVideoElement).currentTime)).toBeLessThan(1);
- await expect(page.locator('.opening-scene')).toBeVisible();await page.keyboard.press('Escape');
+ await expect(page.locator('html')).toHaveAttribute('data-opening','complete');await expect(page.locator('.opening-scene')).toHaveCount(0);await expect(page.locator('.site-experience')).not.toHaveAttribute('inert','');
 });
 
 test('entering a shared inner-page link also shows the opening and keeps its destination',async({page})=>{
@@ -225,11 +236,58 @@ test('entering a shared inner-page link also shows the opening and keeps its des
  await expect(page.locator('.journal-page')).toBeVisible();
 });
 
-test('returning to the mobile home tab from the background replays the opening',async({page})=>{
- await configured(page);await page.goto('/zh/');await expect(page.locator('.opening-scene')).toBeVisible();await page.keyboard.press('Escape');
+test('returning to the home tab from the background does not replay the opening',async({page})=>{
+ await configured(page);await page.goto('/zh/',{waitUntil:'domcontentloaded'});await expect(page.locator('.opening-scene')).toBeVisible();await page.keyboard.press('Escape');
  await page.evaluate(()=>{
   Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));
   Object.defineProperty(document,'hidden',{configurable:true,value:false});document.dispatchEvent(new Event('visibilitychange'));
  });
- await expect(page.locator('.opening-scene')).toBeVisible();await page.keyboard.press('Escape');
+ await expect(page.locator('.opening-scene')).toHaveCount(0);
+});
+
+
+test('iPhone WeChat starts muted and plays actual video frames on its first visit',async({page})=>{
+ await page.addInitScript(()=>{
+  Object.defineProperty(navigator,'userAgent',{get:()=> 'Mozilla/5.0 (iPhone) AppleWebKit/605.1.15 Mobile/15E148 MicroMessenger/8.0'});
+  const play=HTMLMediaElement.prototype.play;
+  (window as any).openingPlayAttempts=[];
+  HTMLMediaElement.prototype.play=function(){
+   if(this instanceof HTMLVideoElement){(window as any).openingPlayAttempts.push(this.muted);if(!this.muted)return Promise.reject(new DOMException('Gesture required','NotAllowedError'));}
+   return play.call(this);
+  };
+ });
+ await page.goto('/zh/',{waitUntil:'domcontentloaded'});await expect(page.locator('.opening-scene')).toHaveAttribute('data-media','video');
+ expect(await page.evaluate(()=>(window as any).openingPlayAttempts[0])).toBe(true);
+ await expect.poll(()=>page.locator('.opening-video').evaluate(el=>(el as HTMLVideoElement).currentTime)).toBeGreaterThan(.3);
+ await page.keyboard.press('Escape');
+});
+
+test('WeChat bridge readiness can retry a first-load autoplay rejection without replacing the video',async({page})=>{
+ await controlledAutoplay(page);
+ await page.addInitScript(()=>{
+  const play=HTMLMediaElement.prototype.play;(window as any).bridgeReady=false;
+  HTMLMediaElement.prototype.play=function(){return this instanceof HTMLVideoElement&&!(window as any).bridgeReady?Promise.reject(new DOMException('Bridge not ready','NotAllowedError')):play.call(this);};
+ });
+ await page.goto('/zh/',{waitUntil:'domcontentloaded'});await expect(page.getByRole('button',{name:'点击播放开屏',exact:true})).toBeVisible();
+ await page.evaluate(()=>{(window as any).bridgeReady=true;document.dispatchEvent(new Event('WeixinJSBridgeReady'));});
+ await expect(page.locator('.opening-scene')).toHaveAttribute('data-media','video');
+ await expect.poll(()=>page.locator('.opening-video').evaluate(el=>(el as HTMLVideoElement).currentTime)).toBeGreaterThan(.3);
+ await page.keyboard.press('Escape');
+});
+
+test('a user tap recovers a blocked first load and the intro waits for video playback',async({page},info)=>{
+ await controlledAutoplay(page);
+ await page.clock.install();
+ await page.addInitScript(()=>{
+  const play=HTMLMediaElement.prototype.play;(window as any).allowVideo=false;
+  document.addEventListener('click',()=>{(window as any).allowVideo=true;},true);
+  HTMLMediaElement.prototype.play=function(){return this instanceof HTMLVideoElement&&!(window as any).allowVideo?Promise.reject(new DOMException('Tap required','NotAllowedError')):play.call(this);};
+ });
+ await page.goto('/zh/',{waitUntil:'domcontentloaded'});const start=page.getByRole('button',{name:'点击播放开屏',exact:true});await expect(start).toBeVisible();
+ await page.clock.fastForward(25000);await expect(start).toBeVisible();
+ await page.screenshot({path:info.outputPath('wechat-first-load-tap.png')});
+ await expect(page.locator('.opening-video')).not.toHaveAttribute('hidden','');
+ await start.click();await expect(page.locator('.opening-scene')).toHaveAttribute('data-media','video');
+ await expect.poll(()=>page.locator('.opening-video').evaluate(el=>(el as HTMLVideoElement).currentTime)).toBeGreaterThan(.3);
+ await page.keyboard.press('Escape');
 });

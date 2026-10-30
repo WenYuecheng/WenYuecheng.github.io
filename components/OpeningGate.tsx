@@ -33,7 +33,6 @@ const release=()=>{if(root.dataset.opening!=='pending')return;root.dataset.openi
 const click=e=>{if(e.target instanceof Element&&e.target.closest('#opening-bootstrap-skip'))release()};
 const key=e=>{if(e.key==='Escape')release()};
 document.addEventListener('click',click);window.addEventListener('keydown',key);
-window.addEventListener('pageshow',event=>{if(event.persisted){root.dataset.opening='pending';document.dispatchEvent(new Event('opening:replay'))}});
 })();`;
 
 export function OpeningGate(){return <div id="opening-bootstrap" role="status" aria-live="polite">

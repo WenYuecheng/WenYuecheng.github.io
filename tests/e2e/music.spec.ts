@@ -63,13 +63,15 @@ test('blocked entry starts on first ordinary click and respects a later pause',a
  expect(await page.locator('audio').evaluate(a=>(a as HTMLAudioElement).paused)).toBe(true);
 });
 
-test('the video opening reserves audio, with music fallback if application code never loads',async({page})=>{
+test('the opening reserves bandwidth and audio until completion or an explicit skip',async({page})=>{
  await page.clock.install();
  await page.addInitScript(()=>{(window as any).earlyMusicAttempts=0;HTMLMediaElement.prototype.play=function(){(window as any).earlyMusicAttempts++;return Promise.reject(new DOMException('Gesture required','NotAllowedError'));};});
  await page.route(/\/_next\/.*\.js(?:\?|$)/,r=>r.abort());
  await page.goto('/',{waitUntil:'domcontentloaded'});
  await expect(page.locator('html')).toHaveAttribute('data-opening','pending');
  expect(await page.evaluate(()=>(window as any).earlyMusicAttempts)).toBe(0);
- await page.clock.fastForward(12500);await expect.poll(()=>page.evaluate(()=>(window as any).earlyMusicAttempts)).toBeGreaterThan(0);
+ await page.clock.fastForward(12500);expect(await page.evaluate(()=>(window as any).earlyMusicAttempts)).toBe(0);
+ await expect(page.locator('#site-audio')).toHaveAttribute('preload','none');
+ await page.locator('#opening-bootstrap-skip').click();await expect.poll(()=>page.evaluate(()=>(window as any).earlyMusicAttempts)).toBeGreaterThan(0);
  await expect(page.locator('#site-audio')).toHaveAttribute('preload','auto');await expect(page.locator('html')).toHaveAttribute('data-music','blocked');
 });
